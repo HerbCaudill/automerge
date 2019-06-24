@@ -15,12 +15,12 @@ declare module 'automerge' {
   function getObjectById<T>(doc: T, objectId: UUID): T
   function getObjectId<T>(doc: T): string
   function init<T>(actorId?: string): T
+  function save<T>(doc: T): string
   function load<T>(doc: string, actorId?: string): T
   function merge<T>(localDoc: T, remoteDoc: T): T
   function redo<T>(doc: T, message?: string): T
-  function save<T>(doc: T): string
   function undo<T>(doc: T, message?: string): T
-  function getElemId<T=string>(object: List<T> | Text, index: number): string
+  function getElemId<T = string>(object: List<T> | Text, index: number): string
 
   class Connection<T> {
     constructor(docSet: DocSet<T>, sendMsg: (msg: Message<T>) => void)
@@ -28,7 +28,7 @@ declare module 'automerge' {
     docChanged(docId: string, doc: T): void
     maybeSendChanges(docId: string): void
     open(): void
-    receiveMsg(msg: Message<T>): T
+    receiveMsg(msg: Message<T>): void
     sendMsg(docId: string, clock: Clock, changes: Change<T>[]): void
   }
 
@@ -103,7 +103,11 @@ declare module 'automerge' {
     function applyPatch<T>(doc: T, patch: Patch): T
     function canRedo<T>(doc: T): boolean
     function canUndo<T>(doc: T): boolean
-    function change<T>(doc: T, message: string | undefined, callback: ChangeFn<T>): [T, Change<T>]
+    function change<T>(
+      doc: T,
+      message: string | undefined,
+      callback: ChangeFn<T>
+    ): [T, Change<T>]
     function change<T>(doc: T, callback: ChangeFn<T>): [T, Change<T>]
     function emptyChange<T>(doc: T, message?: string): [T, Change<T>]
     function getActorId<T>(doc: T): string
@@ -209,13 +213,10 @@ declare module 'automerge' {
     link?: boolean
   }
 
-  type RequestType =
-    | 'change' 
-    | 'redo'
-    | 'undo'
+  type RequestType = 'change' | 'redo' | 'undo'
 
   type OpAction =
-    | 'ins' 
+    | 'ins'
     | 'del'
     | 'inc'
     | 'link'
@@ -225,20 +226,11 @@ declare module 'automerge' {
     | 'makeList'
     | 'makeMap'
 
-  type DiffAction =
-    | 'create'
-    | 'insert'
-    | 'set'
-    | 'remove'
+  type DiffAction = 'create' | 'insert' | 'set' | 'remove'
 
-  type CollectionType =
-    | 'list'
-    | 'map' 
-    | 'table'
-    | 'text'
+  type CollectionType = 'list' | 'map' | 'table' | 'text'
 
   type DataType = 'counter' | 'timestamp'
-
 }
 
 // TYPE UTILITY FUNCTIONS
@@ -247,10 +239,12 @@ type Lookup<T, K> = K extends keyof T ? T[K] : never
 
 // Type utility function: KeyArray
 // Enforces that the array provided for key order only contains keys of T
-type KeyArray<T, KeyOrder extends Array<keyof T>> =
-  keyof T extends KeyOrder[number]
-    ? KeyOrder
-    : Exclude<keyof T, KeyOrder[number]>[]
+type KeyArray<
+  T,
+  KeyOrder extends Array<keyof T>
+> = keyof T extends KeyOrder[number]
+  ? KeyOrder
+  : Exclude<keyof T, KeyOrder[number]>[]
 
 // Type utility function: TupleFromInterface
 // Generates a tuple containing the types of each property of T, in the order provided by KeyOrder. For example:
@@ -264,11 +258,12 @@ type KeyArray<T, KeyOrder extends Array<keyof T>> =
 //
 // function add(b: Book | BookTuple): void
 // ```
-// Now the argument for `Table.add` can either be a `Book` object, or an array of values for each 
-// of the properties of `Book`, in the order given. 
+// Now the argument for `Table.add` can either be a `Book` object, or an array of values for each
+// of the properties of `Book`, in the order given.
 // ```
 // add({authors, title, date}) // valid
 // add([authors, title, date]) // also valid
 // ```
-type TupleFromInterface<T, KeyOrder extends Array<keyof T>> = { [I in keyof KeyOrder]: Lookup<T, KeyOrder[I]> }
-
+type TupleFromInterface<T, KeyOrder extends Array<keyof T>> = {
+  [I in keyof KeyOrder]: Lookup<T, KeyOrder[I]>
+}

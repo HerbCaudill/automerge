@@ -43,6 +43,21 @@ class Connection {
     this.docSet.unregisterHandler(this.docChanged.bind(this))
   }
 
+  // Called by the network stack whenever it receives a message from a peer
+  receiveMsg({ docId, clock, changes }) {
+    // Record their clock value for this document
+    if (clock) this.updateClock([THEIRS], docId, clock)
+
+    const weHaveDoc = this.state(docId) !== undefined
+
+    // If they sent changes, apply them to our document
+    if (changes) this.docSet.applyChanges(docId, fromJS(changes))
+    // If they didn't send changes and we have the document, treat it as a request for our latest changes
+    else if (weHaveDoc) this.maybeSendChanges(docId)
+    // If they didn't send changes and we don't have the document, treat it as an advertisement and request the document
+    else this.requestDoc(docId)
+  }
+
   registerDoc(docId, doc) {
     // Record the doc's initial clock
     this.updateClock([OURS], docId)
@@ -64,21 +79,6 @@ class Connection {
     this.maybeSendChanges(docId)
     this.maybeRequestChanges(docId)
     this.updateClock([OURS], docId)
-  }
-
-  // Called by the network stack whenever it receives a message from a peer
-  receiveMsg({ docId, clock, changes }) {
-    // Record their clock value for this document
-    if (clock) this.updateClock([THEIRS], docId, clock)
-
-    const weHaveDoc = this.state(docId) !== undefined
-
-    // If they sent changes, apply them to our document
-    if (changes) this.docSet.applyChanges(docId, fromJS(changes))
-    // If they didn't send changes and we have the document, treat it as a request for our latest changes
-    else if (weHaveDoc) this.maybeSendChanges(docId)
-    // If they didn't send changes and we don't have the document, treat it as an advertisement and request the document
-    else this.requestDoc(docId)
   }
 
   // Send changes if we have more recent information than they do
