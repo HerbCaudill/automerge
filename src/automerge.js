@@ -22,9 +22,11 @@ function init(actorId) {
   return Frontend.init({actorId, backend: Backend})
 }
 
+/**
+ * Returns a new document object initialized with the given state.
+ */
 function from(initialState) {
-  const [doc] = Frontend.from(initialState)
-  return doc
+  return change(init(), 'Initialization', doc => Object.assign(doc, initialState))
 }
 
 function change(doc, message, callback) {

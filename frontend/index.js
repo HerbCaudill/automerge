@@ -105,9 +105,10 @@ function makeChange(doc, requestType, context, message) {
     return [applyPatchToDoc(doc, patch, state, true), request]
 
   } else {
+    if (!context) context = new Context(doc, actor)
     const queuedRequest = Object.assign({}, request)
     queuedRequest.before = doc
-    if (context) queuedRequest.diffs = context.diffs
+    queuedRequest.diffs = context.diffs
     state.requests = state.requests.slice() // shallow clone
     state.requests.push(queuedRequest)
     return [updateRootObject(doc, context.updated, context.inbound, state), request]
@@ -231,11 +232,10 @@ function init(options) {
 }
 
 /**
- * Returns a new document object with the given initial state. 
- * https://github.com/automerge/automerge/issues/127#issuecomment-505454250
+ * Returns a new document object initialized with the given state.
  */
 function from(initialState) {
-  return change(init(), 'Initialization', doc => doc = Object.assign(doc, initialState))
+  return change(init(), 'Initialization', doc => Object.assign(doc, initialState))
 }
 
 
