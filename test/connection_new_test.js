@@ -2,504 +2,261 @@ const assert = require('assert')
 const sinon = require('sinon')
 const Automerge =
   process.env.TEST_DIST === '1' ? require('../dist/automerge') : require('../src/automerge')
-const Connection = require('../src/connection.new.js')
-const DocSet = Automerge.DocSet
+const Connection = require('../src/connection.js')
+const uuid = require('uuid')
+const EventEmitter = require('events')
 
-describe('Automerge.ConnectionNew', () => {
-  var doc1, nodes
+const { change, DocSet } = Automerge
 
-  beforeEach(() => {
-    doc1 = Automerge.change(Automerge.init(), doc => (doc.doc1 = 'doc1'))
-    nodes = []
-    for (let i = 0; i < 5; i++) nodes.push(new DocSet())
-  })
-
-  // Mini-DSL for describing the message exchanges between nodes
-  function execution(links, steps) {
-    let count = [],
-      spies = [],
-      conns = [],
-      allConns = []
-
-    for (let link of links) {
-      let n1 = link[0],
-        n2 = link[1]
-      if (!count[n1]) count[n1] = []
-      count[n1][n2] = 0
-      if (!count[n2]) count[n2] = []
-      count[n2][n1] = 0
-      if (!spies[n1]) spies[n1] = []
-      spies[n1][n2] = sinon.spy()
-      if (!spies[n2]) spies[n2] = []
-      spies[n2][n1] = sinon.spy()
-      if (!conns[n1]) conns[n1] = []
-      conns[n1][n2] = new Connection(nodes[n1], spies[n1][n2])
-      if (!conns[n2]) conns[n2] = []
-      conns[n2][n1] = new Connection(nodes[n2], spies[n2][n1])
-      allConns.push(conns[n1][n2], conns[n2][n1])
-    }
-
-    for (let conn of allConns) conn.open()
-
-    for (let step of steps) {
-      if (typeof step === 'function') {
-        step()
-      } else if (typeof step === 'object') {
-        if (spies[step.from][step.to].callCount <= count[step.from][step.to]) {
-          throw new Error('Expected message was not sent at step: ' + JSON.stringify(step))
-        }
-
-        let msg = spies[step.from][step.to].getCall(count[step.from][step.to]).args[0]
-        if (step.match) step.match(msg)
-
-        if (step.deliver) {
-          count[step.from][step.to] += 1
-          conns[step.to][step.from].receiveMsg(msg)
-        } else if (step.drop) {
-          count[step.from][step.to] += 1
-        }
-      }
-    }
-
-    function checkCallCount(n1, n2) {
-      if (spies[n1][n2].callCount !== count[n1][n2]) {
-        throw new Error(
-          'Expected ' +
-            count[n1][n2] +
-            ' messages from node ' +
-            n1 +
-            ' to node ' +
-            n2 +
-            ', but saw ' +
-            spies[n1][n2].callCount +
-            ' messages'
-        )
-      }
-    }
-
-    for (let link of links) {
-      checkCallCount(link[0], link[1])
-      checkCallCount(link[1], link[0])
-    }
+const makeConnection = (id, docSet, channel) => {
+  const send = msg => {
+    // console.log(`${id} sends`, JSON.stringify(msg))
+    channel.write(id, msg)
   }
 
-  it('should not send messages if there are no documents', () => {
-    execution([[1, 2]], [])
+  const connection = new Connection(docSet, send)
+
+  channel.on('data', (peer_id, msg) => {
+    if (peer_id === id) return // ignore messages that we sent
+    // console.log(`${id} receives`, msg)
+    connection.receiveMsg(msg)
   })
 
-  it('should advertise locally available documents', () => {
-    nodes[1].setDoc('doc1', doc1)
+  connection.open()
+  return connection
+}
 
-    execution(
-      [[1, 2]],
-      [
-        {
-          from: 1,
-          to: 2,
-          drop: true,
-          match(msg) {
-            assert.deepEqual(msg, { docId: 'doc1', clock: { [Automerge.getActorId(doc1)]: 1 } })
-          },
-        },
-      ]
-    )
+class Channel extends EventEmitter {
+  write(id, msg) {
+    this.emit('data', id, msg)
+  }
+}
+
+const from = (s, actorId) => {
+  return change(Automerge.init(actorId), d => (d = Object.assign(d, s)))
+}
+
+describe(`Automerge.Connection`, () => {
+  describe('Changes after connecting', () => {
+    let localDocSet, remoteDocSet
+    const ID = '123'
+
+    beforeEach(() => {
+      localDocSet = new DocSet()
+      localDocSet.setDoc(ID, from({ swallows: 1 }, '1'))
+      remoteDocSet = new DocSet()
+      remoteDocSet.setDoc(ID, from({}, '2'))
+
+      const channel = new Channel()
+      makeConnection(1, localDocSet, channel)
+      makeConnection(2, remoteDocSet, channel)
+    })
+
+    it('should sync up initial state', () => {
+      assert.deepEqual(remoteDocSet.getDoc(ID), { swallows: 1 })
+    })
+
+    it('should communicate local changes to remote', () => {
+      let localDoc = localDocSet.getDoc(ID)
+      localDocSet.setDoc(ID, change(localDoc, s => (s.swallows = 2)))
+
+      let remoteDoc = remoteDocSet.getDoc(ID)
+      assert.deepEqual(remoteDoc, { swallows: 2 })
+    })
+
+    it('should communicate remote changes to local', () => {
+      let remoteDoc = remoteDocSet.getDoc(ID)
+      remoteDocSet.setDoc(ID, change(remoteDoc, s => (s.swallows = 42)))
+
+      let localDoc = localDocSet.getDoc(ID)
+      assert.deepEqual(localDoc, { swallows: 42 })
+    })
+
+    it('should sync up new documents', () => {
+      localDocSet.setDoc('xyz', Automerge.from({ boo: 999 }))
+      assert.deepEqual(remoteDocSet.getDoc('xyz'), { boo: 999 })
+    })
+
+    it('should concurrently exchange new documents', () => {
+      localDocSet.setDoc('abc', Automerge.from({ wrens: 555 }))
+      remoteDocSet.setDoc('qrs', Automerge.from({ orioles: 123 }))
+
+      assert.deepEqual(remoteDocSet.getDoc('abc'), { wrens: 555 })
+      assert.deepEqual(localDocSet.getDoc('qrs'), { orioles: 123 })
+    })
+
+    it('should sync ongoing changes both ways', () => {
+      const localDoc = localDocSet.getDoc(ID)
+      localDocSet.setDoc(ID, change(localDoc, doc => (doc.orioles = 123)))
+
+      const remoteDoc = remoteDocSet.getDoc(ID)
+      remoteDocSet.setDoc(ID, change(remoteDoc, doc => (doc.wrens = 555)))
+
+      assert.deepEqual(remoteDocSet.getDoc(ID), {
+        swallows: 1,
+        orioles: 123,
+        wrens: 555,
+      })
+    })
   })
 
-  it('should send any document that does not exist remotely', () => {
-    nodes[1].setDoc('doc1', doc1)
+  describe('Changes before connecting', () => {
+    it('should sync after the fact', () => {
+      const ID = '123'
 
-    execution(
-      [[1, 2]],
-      [
-        // Node 1 advertises document
-        {
-          from: 1,
-          to: 2,
-          deliver: true,
-          match(msg) {
-            assert.deepEqual(msg, { docId: 'doc1', clock: { [Automerge.getActorId(doc1)]: 1 } })
-          },
-        },
+      const localDocSet = new DocSet()
+      localDocSet.setDoc(ID, from({}, 'L'))
 
-        // Node 2 requests document
-        {
-          from: 2,
-          to: 1,
-          deliver: true,
-          match(msg) {
-            assert.deepEqual(msg, { docId: 'doc1', clock: {} })
-          },
-        },
+      let localDoc = localDocSet.getDoc(ID)
+      localDoc = change(localDoc, doc => (doc.wrens = 2))
+      localDocSet.setDoc(ID, localDoc)
 
-        // Node 1 responds with document data
-        {
-          from: 1,
-          to: 2,
-          deliver: true,
-          match(msg) {
-            assert.strictEqual(msg.docId, 'doc1')
-            assert.strictEqual(msg.changes.length, 1)
-          },
-        },
+      const remoteDocSet = new DocSet()
+      remoteDocSet.setDoc(ID, Automerge.from({}, 'R'))
 
-        () => {
-          assert.strictEqual(nodes[2].getDoc('doc1').doc1, 'doc1')
-        },
+      const channel = new Channel()
+      makeConnection('L', localDocSet, channel)
+      makeConnection('R', remoteDocSet, channel)
 
-        // Node 2 acknowledges receipt
-        {
-          from: 2,
-          to: 1,
-          deliver: true,
-          match(msg) {
-            assert.deepEqual(msg, { docId: 'doc1', clock: { [Automerge.getActorId(doc1)]: 1 } })
-          },
-        },
-      ]
-    )
+      const exp = {
+        wrens: 2,
+      }
+      assert.deepEqual(remoteDocSet.getDoc(ID), exp)
+      assert.deepEqual(localDocSet.getDoc(ID), exp)
+    })
   })
 
-  it('should concurrently exchange any missing documents', () => {
-    let doc2 = Automerge.change(Automerge.init(), doc => (doc.doc2 = 'doc2'))
-    nodes[1].setDoc('doc1', doc1)
-    nodes[2].setDoc('doc2', doc2)
+  describe('Intermittent connection', () => {
+    const ID = '123'
+    let localConnection, remoteConnection
+    let localDocSet, remoteDocSet
+    let channel = new Channel()
 
-    execution(
-      [[1, 2]],
-      [
-        // The two nodes concurrently and independently send an initial advertisement
-        {
-          from: 1,
-          to: 2,
-          match(msg) {
-            assert.deepEqual(msg, { docId: 'doc1', clock: { [Automerge.getActorId(doc1)]: 1 } })
-          },
-        },
-        {
-          from: 2,
-          to: 1,
-          match(msg) {
-            assert.deepEqual(msg, { docId: 'doc2', clock: { [Automerge.getActorId(doc2)]: 1 } })
-          },
-        },
-        { from: 1, to: 2, deliver: true },
-        { from: 2, to: 1, deliver: true },
+    function networkOff() {
+      channel.removeAllListeners()
+      localConnection.close()
+      remoteConnection.close()
+    }
 
-        // The two requests for missing documents cross over
-        {
-          from: 1,
-          to: 2,
-          match(msg) {
-            assert.deepEqual(msg, { docId: 'doc2', clock: {} })
-          },
-        },
-        {
-          from: 2,
-          to: 1,
-          match(msg) {
-            assert.deepEqual(msg, { docId: 'doc1', clock: {} })
-          },
-        },
-        { from: 1, to: 2, deliver: true },
-        { from: 2, to: 1, deliver: true },
+    function networkOn() {
+      channel = new Channel()
+      localConnection = makeConnection('L', localDocSet, channel)
+      remoteConnection = makeConnection('R', remoteDocSet, channel)
+    }
 
-        // The two document data responses
-        {
-          from: 1,
-          to: 2,
-          match(msg) {
-            assert.strictEqual(msg.docId, 'doc1')
-            assert.strictEqual(msg.changes.length, 1)
-          },
-        },
-        {
-          from: 2,
-          to: 1,
-          match(msg) {
-            assert.strictEqual(msg.docId, 'doc2')
-            assert.strictEqual(msg.changes.length, 1)
-          },
-        },
-        { from: 1, to: 2, deliver: true },
-        { from: 2, to: 1, deliver: true },
+    beforeEach(() => {
+      localDocSet = new DocSet()
+      remoteDocSet = new DocSet()
 
-        // The two acknowledgements
-        { from: 1, to: 2, deliver: true },
-        { from: 2, to: 1, deliver: true },
-      ]
-    )
-  })
+      // only need to do this to get a known ActorID on remote -
+      // otherwise everything works without it
+      remoteDocSet.setDoc(ID, from({}, 'R'))
 
-  it('should bring an older copy up-to-date with a newer one', () => {
-    let doc2 = Automerge.merge(Automerge.init(), doc1)
-    doc2 = Automerge.change(doc2, doc => (doc.doc1 = 'doc1++'))
-    nodes[1].setDoc('doc1', doc1)
-    nodes[2].setDoc('doc1', doc2)
+      networkOn()
+      localDocSet.setDoc(ID, from({ swallows: 1 }, 'L'))
+    })
 
-    execution(
-      [[1, 2]],
-      [
-        // Initial advertisement messages
-        {
-          from: 1,
-          to: 2,
-          match(msg) {
-            assert.deepEqual(msg, { docId: 'doc1', clock: { [Automerge.getActorId(doc1)]: 1 } })
-          },
-        },
-        {
-          from: 2,
-          to: 1,
-          match(msg) {
-            assert.deepEqual(msg, {
-              docId: 'doc1',
-              clock: {
-                [Automerge.getActorId(doc1)]: 1,
-                [Automerge.getActorId(doc2)]: 1,
-              },
-            })
-          },
-        },
-        { from: 1, to: 2, deliver: true },
-        { from: 2, to: 1, deliver: true },
+    it('should sync local changes made while offline', () => {
+      let localDoc = localDocSet.getDoc(ID)
 
-        // Node 2 sends missing changes to node 1
-        {
-          from: 2,
-          to: 1,
-          deliver: true,
-          match(msg) {
-            assert.strictEqual(msg.docId, 'doc1')
-            assert.strictEqual(msg.changes.length, 1)
-          },
-        },
+      // remote peer has original state
+      assert.equal(remoteDocSet.getDoc(ID).swallows, 1)
 
-        // Node 1 acknowledges the change, and that's it
-        {
-          from: 1,
-          to: 2,
-          deliver: true,
-          match(msg) {
-            assert.deepEqual(msg, {
-              docId: 'doc1',
-              clock: {
-                [Automerge.getActorId(doc1)]: 1,
-                [Automerge.getActorId(doc2)]: 1,
-              },
-            })
-          },
-        },
-      ]
-    )
+      // make local changes online
+      localDoc = change(localDoc, doc => (doc.swallows = 2))
+      localDocSet.setDoc(ID, localDoc)
 
-    assert.strictEqual(nodes[1].getDoc('doc1').doc1, 'doc1++')
-    assert.strictEqual(nodes[1].getDoc('doc1').doc1, 'doc1++')
-  })
+      // remote peer sees changes immediately
+      assert.equal(remoteDocSet.getDoc(ID).swallows, 2)
 
-  it('should bidirectionally merge divergent document copies', () => {
-    let doc2 = Automerge.merge(Automerge.init(), doc1)
-    doc2 = Automerge.change(doc2, doc => (doc.two = 'two'))
-    doc1 = Automerge.change(doc1, doc => (doc.one = 'one'))
-    nodes[1].setDoc('doc1', doc1)
-    nodes[2].setDoc('doc1', doc2)
+      networkOff()
 
-    execution(
-      [[1, 2]],
-      [
-        // Node 1 sends an advertisement but node 2 doesn't (for whatever reason)
-        {
-          from: 1,
-          to: 2,
-          deliver: true,
-          match(msg) {
-            assert.deepEqual(msg, { docId: 'doc1', clock: { [Automerge.getActorId(doc1)]: 2 } })
-          },
-        },
-        { from: 2, to: 1, drop: true },
+      // make local changes offline
+      localDoc = change(localDoc, doc => (doc.swallows = 3))
+      localDocSet.setDoc(ID, localDoc)
 
-        // Node 2 sends the change that node 1 is missing
-        {
-          from: 2,
-          to: 1,
-          deliver: true,
-          match(msg) {
-            assert.deepEqual(msg.clock, {
-              [Automerge.getActorId(doc1)]: 1,
-              [Automerge.getActorId(doc2)]: 1,
-            })
-            assert.strictEqual(msg.changes.length, 1)
-          },
-        },
+      // remote peer doesn't see changes
+      assert.equal(remoteDocSet.getDoc(ID).swallows, 2)
 
-        // Node 1 acknowledges node 2's change, and sends the change that node 2 is missing
-        {
-          from: 1,
-          to: 2,
-          deliver: true,
-          match(msg) {
-            assert.deepEqual(msg.clock, {
-              [Automerge.getActorId(doc1)]: 2,
-              [Automerge.getActorId(doc2)]: 1,
-            })
-            assert.strictEqual(msg.changes.length, 1)
-          },
-        },
+      networkOn()
 
-        // Node 2 acknowledges node 1's change
-        {
-          from: 2,
-          to: 1,
-          deliver: true,
-          match(msg) {
-            assert.deepEqual(msg.clock, {
-              [Automerge.getActorId(doc1)]: 2,
-              [Automerge.getActorId(doc2)]: 1,
-            })
-          },
-        },
-      ]
-    )
+      // as soon as we're back online, remote peer sees changes
+      assert.equal(remoteDocSet.getDoc(ID).swallows, 3)
+    })
 
-    assert.deepEqual(nodes[1].getDoc('doc1'), { doc1: 'doc1', one: 'one', two: 'two' })
-    assert.deepEqual(nodes[1].getDoc('doc1'), { doc1: 'doc1', one: 'one', two: 'two' })
-  })
+    it('should bidirectionally sync offline changes', () => {
+      let localDoc = localDocSet.getDoc(ID)
+      let remoteDoc = remoteDocSet.getDoc(ID)
 
-  it('should forward incoming changes to other connections', () => {
-    nodes[2].setDoc('doc1', doc1)
+      networkOff()
 
-    execution(
-      [[1, 2], [1, 3]],
-      [
-        // Node 2 advertises the document
-        {
-          from: 2,
-          to: 1,
-          deliver: true,
-          match(msg) {
-            assert.deepEqual(msg, { docId: 'doc1', clock: { [Automerge.getActorId(doc1)]: 1 } })
-          },
-        },
+      // local peer makes changes
+      localDoc = change(localDoc, doc => (doc.wrens = 1))
+      localDocSet.setDoc(ID, localDoc)
 
-        // Node 1 requests the document from node 2
-        { from: 1, to: 2, deliver: true },
+      // remote peer doesn't see local changes
+      assert.deepEqual(remoteDocSet.getDoc(ID), { swallows: 1 })
 
-        // Node 2 sends the document to node 1
-        { from: 2, to: 1, deliver: true },
-        () => {
-          assert.strictEqual(nodes[1].getDoc('doc1').doc1, 'doc1')
-        },
+      // remote peer makes changes
+      remoteDoc = change(remoteDoc, doc => (doc.robins = 1))
+      remoteDocSet.setDoc(ID, remoteDoc)
 
-        // Node 1 sends acknowledgement to node 2, and advertisement to node 3
-        { from: 1, to: 2, deliver: true },
-        {
-          from: 1,
-          to: 3,
-          deliver: true,
-          match(msg) {
-            assert.deepEqual(msg, { docId: 'doc1', clock: { [Automerge.getActorId(doc1)]: 1 } })
-          },
-        },
+      // local peer doesn't see remote changes
+      assert.deepEqual(localDocSet.getDoc(ID), { swallows: 1, wrens: 1 })
 
-        // Node 3 requests the document from node 1
-        { from: 3, to: 1, deliver: true },
+      networkOn()
 
-        // Node 1 sends the document to node 3
-        { from: 1, to: 3, deliver: true },
-        () => {
-          assert.strictEqual(nodes[3].getDoc('doc1').doc1, 'doc1')
-        },
+      // HACK: is there a way to to avoid this?
+      localDocSet.setDoc(ID, localDoc) // we just need this to trigger a sync
 
-        // Node 3 sends acknowledgement to node 1
-        { from: 3, to: 1, deliver: true },
-      ]
-    )
-  })
+      // as soon as we're back online, both peers see both changes
+      const expected = {
+        swallows: 1,
+        robins: 1,
+        wrens: 1,
+      }
 
-  it('should tolerate duplicate message deliveries', () => {
-    doc1 = Automerge.change(Automerge.init(), doc => (doc.list = []))
-    let doc2 = Automerge.merge(Automerge.init(), doc1)
-    let doc3 = Automerge.merge(Automerge.init(), doc1)
-    nodes[1].setDoc('doc1', doc1)
-    nodes[2].setDoc('doc1', doc1)
-    nodes[3].setDoc('doc1', doc1)
+      assert.deepEqual(localDocSet.getDoc(ID), expected)
+      assert.deepEqual(remoteDocSet.getDoc(ID), expected)
+    })
 
-    execution(
-      [[1, 2], [1, 3], [2, 3]],
-      [
-        // Advertisement messages
-        { from: 1, to: 2, deliver: true },
-        { from: 1, to: 3, deliver: true },
-        { from: 2, to: 1, deliver: true },
-        { from: 2, to: 3, deliver: true },
-        { from: 3, to: 1, deliver: true },
-        { from: 3, to: 2, deliver: true },
+    it('should resolve conflicts introduced while offline', () => {
+      let localDoc = localDocSet.getDoc(ID)
+      let remoteDoc = remoteDocSet.getDoc(ID)
 
-        // Change made on node 1, propagated to nodes 2 and 3
-        () => {
-          doc1 = Automerge.change(doc1, doc => doc.list.push('hello'))
-          nodes[1].setDoc('doc1', doc1)
-        },
-        {
-          from: 1,
-          to: 2,
-          deliver: true,
-          match(msg) {
-            assert.deepEqual(msg.clock, { [Automerge.getActorId(doc1)]: 2 })
-            assert.strictEqual(msg.changes.length, 1)
-          },
-        },
-        {
-          from: 1,
-          to: 3,
-          match(msg) {
-            assert.deepEqual(msg.clock, { [Automerge.getActorId(doc1)]: 2 })
-            assert.strictEqual(msg.changes.length, 1)
-          },
-        },
+      networkOff()
 
-        // Node 2 acknowledges to node 1, and forwards to node 3
-        {
-          from: 2,
-          to: 1,
-          deliver: true,
-          match(msg) {
-            assert.deepEqual(msg, { docId: 'doc1', clock: { [Automerge.getActorId(doc1)]: 2 } })
-          },
-        },
-        {
-          from: 2,
-          to: 3,
-          match(msg) {
-            assert.strictEqual(msg.changes.length, 1)
-          },
-        },
+      // local peer makes changes
+      localDoc = change(localDoc, doc => (doc.swallows = 13))
+      localDocSet.setDoc(ID, localDoc)
 
-        // Now node 3 receives the change notifications from nodes 1 and 2
-        { from: 1, to: 3, deliver: true },
-        { from: 2, to: 3, deliver: true },
+      // remote peer doesn't see local changes
+      assert.deepEqual(remoteDocSet.getDoc(ID), { swallows: 1 })
 
-        // Acknowledgements from node 3
-        {
-          from: 3,
-          to: 1,
-          deliver: true,
-          match(msg) {
-            assert.deepEqual(msg.clock, { [Automerge.getActorId(doc1)]: 2 })
-          },
-        },
-        {
-          from: 3,
-          to: 2,
-          deliver: true,
-          match(msg) {
-            assert.deepEqual(msg.clock, { [Automerge.getActorId(doc1)]: 2 })
-          },
-        },
-      ]
-    )
+      // remote peer makes changes
+      remoteDoc = change(remoteDoc, doc => (doc.swallows = 42))
+      remoteDocSet.setDoc(ID, remoteDoc)
 
-    assert.deepEqual(nodes[1].getDoc('doc1'), { list: ['hello'] })
-    assert.deepEqual(nodes[2].getDoc('doc1'), { list: ['hello'] })
-    assert.deepEqual(nodes[3].getDoc('doc1'), { list: ['hello'] })
+      // local peer doesn't see remote changes
+      assert.deepEqual(localDocSet.getDoc(ID), { swallows: 13 })
+
+      networkOn()
+
+      // HACK: is there a way to to avoid this?
+      localDocSet.setDoc(ID, localDoc) // we just need this to trigger a sync
+
+      // as soon as we're back online, one of the changes is selected
+      localDoc = localDocSet.getDoc(ID)
+      remoteDoc = remoteDocSet.getDoc(ID)
+      const localValue = localDoc.swallows
+      const remoteValue = remoteDoc.swallows
+      assert.equal(localValue, remoteValue)
+
+      // we don't know the exact value, but it's one of the two, and
+      // the "losing" value is stored in `conflicts`
+      const conflict = Automerge.getConflicts(localDoc, 'swallows')
+      assert.ok(localValue === 13 || (remoteValue === 42 && conflict.L === 13))
+      assert.ok(remoteValue === 42 || (localValue === 13 && conflict.R === 42))
+    })
   })
 })
