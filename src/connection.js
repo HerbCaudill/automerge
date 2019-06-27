@@ -31,7 +31,7 @@ function clockUnion(clockMap, docId, clock) {
 // ourClock is the most recent VClock that we've advertised to the peer (i.e. where we've
 // told the peer that we have it).
 class Connection {
-  constructor (docSet, sendMsg) {
+  constructor(docSet, sendMsg) {
     this._docSet = docSet
     this._sendMsg = sendMsg
     this._theirClock = Map()
@@ -39,23 +39,23 @@ class Connection {
     this._docChangedHandler = this.docChanged.bind(this)
   }
 
-  open () {
+  open() {
     for (let docId of this._docSet.docIds) this.docChanged(docId, this._docSet.getDoc(docId))
     this._docSet.registerHandler(this._docChangedHandler)
   }
 
-  close () {
+  close() {
     this._docSet.unregisterHandler(this._docChangedHandler)
   }
 
-  sendMsg (docId, clock, changes) {
-    const msg = {docId, clock: clock.toJS()}
+  sendMsg(docId, clock, changes) {
+    const msg = { docId, clock: clock.toJS() }
     this._ourClock = clockUnion(this._ourClock, docId, clock)
     if (changes) msg.changes = changes
     this._sendMsg(msg)
   }
 
-  maybeSendChanges (docId) {
+  maybeSendChanges(docId) {
     const doc = this._docSet.getDoc(docId)
     const state = Frontend.getBackendState(doc)
     const clock = state.getIn(['opSet', 'clock'])
@@ -73,12 +73,14 @@ class Connection {
   }
 
   // Callback that is called by the docSet whenever a document is changed
-  docChanged (docId, doc) {
+  docChanged(docId, doc) {
     const state = Frontend.getBackendState(doc)
     const clock = state.getIn(['opSet', 'clock'])
     if (!clock) {
-      throw new TypeError('This object cannot be used for network sync. ' +
-                          'Are you trying to sync a snapshot from the history?')
+      throw new TypeError(
+        'This object cannot be used for network sync. ' +
+          'Are you trying to sync a snapshot from the history?'
+      )
     }
 
     if (!lessOrEqual(this._ourClock.get(docId, Map()), clock)) {
@@ -88,7 +90,7 @@ class Connection {
     this.maybeSendChanges(docId)
   }
 
-  receiveMsg (msg) {
+  receiveMsg(msg) {
     if (msg.clock) {
       this._theirClock = clockUnion(this._theirClock, msg.docId, fromJS(msg.clock))
     }
