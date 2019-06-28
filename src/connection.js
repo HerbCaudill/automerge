@@ -91,7 +91,6 @@ class Connection {
     if (changes.length > 0) {
       this._updateClock(theirs, docId, clock)
       this._sendChanges(docId, clock, changes)
-      return
     }
   }
 
