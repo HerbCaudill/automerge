@@ -55,7 +55,7 @@ class Connection {
   // Called by the network stack whenever it receives a message from a peer
   receiveMsg({ docId, clock, changes }) {
     if (clock) {
-      this._clock.theirs = clockUnion(this._clock.theirs, docId, fromJS(clock))
+      this._updateClock(theirs, docId, clock)
     }
     if (changes) {
       return this._docSet.applyChanges(docId, fromJS(changes))
@@ -69,6 +69,10 @@ class Connection {
     }
 
     return this._docSet.getDoc(docId)
+  }
+
+  _updateClock(which, docId, clock) {
+    this._clock[which] = clockUnion(this._clock[which], docId, fromJS(clock))
   }
 
   sendMsg(docId, clock, changes) {
