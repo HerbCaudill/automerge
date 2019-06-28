@@ -3,14 +3,6 @@ const { lessOrEqual } = require('./common')
 const Frontend = require('../frontend')
 const Backend = require('../backend')
 
-// Updates the vector clock for `docId` in `clockMap` (mapping from docId to vector clock)
-// by merging in the new vector clock `clock`. Returns the updated `clockMap`, in which each node's
-// sequence number has been set to the maximum for that node.
-function clockUnion(clockMap, docId, clock) {
-  clock = clockMap.get(docId, Map()).mergeWith((x, y) => Math.max(x, y), clock)
-  return clockMap.set(docId, clock)
-}
-
 // Keeps track of the communication with one particular peer. Allows updates for many documents to
 // be multiplexed over a single connection.
 //
@@ -71,13 +63,21 @@ class Connection {
 
   // Private methods
 
+  // Updates the vector clock for `docId` in the given `clockMap` (mapping from docId to vector clock) by merging in
+  // the new vector clock `clock`, setting each node's sequence number has been set to the maximum for that node.
   _updateClock(which, docId, clock) {
-    this._clock[which] = clockUnion(this._clock[which], docId, fromJS(clock))
+    clock = fromJS(clock)
+    const clockMap = this._clock[which]
+    const oldClock = clockMap.get(docId, Map())
+    // Merge the clocks, keeping the maximum sequence number for each node
+    const newClock = oldClock.mergeWith((x, y) => Math.max(x, y), clock)
+    // Update the clockMap
+    this._clock[which] = clockMap.set(docId, newClock)
   }
 
   sendMsg(docId, clock, changes) {
     const msg = { docId, clock: clock.toJS() }
-    this._clock.ours = clockUnion(this._clock.ours, docId, clock)
+    this._updateClock(ours, docId, clock)
     if (changes) msg.changes = changes
     this._sendMsg(msg)
   }
@@ -90,7 +90,7 @@ class Connection {
     if (this._clock.theirs.has(docId)) {
       const changes = Backend.getMissingChanges(state, this._clock.theirs.get(docId))
       if (changes.length > 0) {
-        this._clock.theirs = clockUnion(this._clock.theirs, docId, clock)
+        this._updateClock(theirs, docId, clock)
         this.sendMsg(docId, clock, changes)
         return
       }
