@@ -35,15 +35,15 @@ class Connection {
 
   open() {
     // Process initial state of each existing doc
-    for (let docId of this._docSet.docIds) this.docChanged(docId, this._docSet.getDoc(docId))
+    for (let docId of this._docSet.docIds) this._docChanged(docId, this._docSet.getDoc(docId))
 
     // Subscribe to docSet changes
-    this._docSet.registerHandler(this.docChanged.bind(this))
+    this._docSet.registerHandler(this._docChanged.bind(this))
   }
 
   close() {
     // Unsubscribe from docSet changes
-    this._docSet.unregisterHandler(this.docChanged.bind(this))
+    this._docSet.unregisterHandler(this._docChanged.bind(this))
   }
 
   // Called by the network stack whenever it receives a message from a peer
@@ -56,9 +56,9 @@ class Connection {
     // If they sent changes, apply them to our document
     if (changes) return this._docSet.applyChanges(docId, fromJS(changes))
     // If they didn't send changes and we have the document, treat it as a request for our latest changes
-    else if (weHaveDoc) this.maybeSendChanges(docId)
+    else if (weHaveDoc) this._maybeSendChanges(docId)
     // If they didn't send changes and we don't have the document, treat it as an advertisement and request the document
-    else if (!this._clock.ours.has(docId)) this.sendMsg(docId, Map())
+    else if (!this._clock.ours.has(docId)) this._sendChanges(docId, Map())
   }
 
   // Private methods
@@ -76,14 +76,14 @@ class Connection {
     this._clock[which] = clockMap.set(docId, newClock)
   }
 
-  sendMsg(docId, clock, changes) {
+  _sendChanges(docId, clock, changes) {
     const msg = { docId, clock: clock.toJS() }
     this._updateClock(ours, docId, clock)
     if (changes) msg.changes = changes
     this._sendMsg(msg)
   }
 
-  maybeSendChanges(docId) {
+  _maybeSendChanges(docId) {
     const doc = this._docSet.getDoc(docId)
     const state = Frontend.getBackendState(doc)
     const clock = state.getIn(['opSet', 'clock'])
@@ -92,16 +92,16 @@ class Connection {
       const changes = Backend.getMissingChanges(state, this._clock.theirs.get(docId))
       if (changes.length > 0) {
         this._updateClock(theirs, docId, clock)
-        this.sendMsg(docId, clock, changes)
+        this._sendChanges(docId, clock, changes)
         return
       }
     }
 
-    if (!clock.equals(this._clock.ours.get(docId, Map()))) this.sendMsg(docId, clock)
+    if (!clock.equals(this._clock.ours.get(docId, Map()))) this._sendChanges(docId, clock)
   }
 
   // Callback that is called by the docSet whenever a document is changed
-  docChanged(docId, doc) {
+  _docChanged(docId, doc) {
     const state = Frontend.getBackendState(doc)
     const clock = state.getIn(['opSet', 'clock'])
     if (!clock) {
@@ -115,7 +115,7 @@ class Connection {
       throw new RangeError('Cannot pass an old state object to a connection')
     }
 
-    this.maybeSendChanges(docId)
+    this._maybeSendChanges(docId)
   }
 }
 
