@@ -93,10 +93,8 @@ class Connection {
   }
 
   _sendChanges(docId, clock, changes) {
-    const msg = { docId, clock: clock.toJS() }
-    if (changes) msg.changes = changes
     this._updateClock(ours, docId, clock)
-    this._sendMsg(msg)
+    this._sendMsg({ docId, clock: clock.toJS(), changes })
   }
 
   _maybeRequestChanges(docId) {
@@ -108,7 +106,6 @@ class Connection {
 
   // A message with no changes is a request for changes
   _requestChanges(docId, clock = this._getClockFromDoc(docId) || {}) {
-    this._updateClock(ours, docId, clock)
     this._sendMsg({ docId, clock: clock.toJS() })
   }
 
