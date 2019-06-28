@@ -97,7 +97,8 @@ class Connection {
 
   _maybeRequestChanges(docId) {
     const clock = this._getClockFromDoc(docId)
-    if (!clock.equals(this._getClockFromMap(docId, ours))) this._sendChanges(docId, clock)
+    const ourClock = this._getClockFromMap(docId, ours)
+    if (!clock.equals(ourClock)) this._sendChanges(docId, clock)
   }
 
   _sendChanges(docId, clock, changes) {
