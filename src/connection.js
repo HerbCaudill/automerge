@@ -80,7 +80,6 @@ class Connection {
   _maybeSendChanges(docId) {
     const theirClock = this._clock.theirs.get(docId)
 
-    const doc = this._docSet.getDoc(docId)
     const clock = this._getClock(docId)
     const ourState = this._getState(docId)
 
