@@ -92,6 +92,11 @@ class Connection {
       }
     }
 
+    this._maybeRequestChanges(docId)
+  }
+
+  _maybeRequestChanges(docId) {
+    const clock = this._getClockFromDoc(docId)
     if (!clock.equals(this._getClockFromMap(docId, ours))) this._sendChanges(docId, clock)
   }
 
