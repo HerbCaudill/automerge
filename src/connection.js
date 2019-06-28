@@ -1,4 +1,4 @@
-const { Map, fromJS } = require('immutable')
+const { Map } = require('immutable')
 const { lessOrEqual } = require('./common')
 const Frontend = require('../frontend')
 const Backend = require('../backend')
@@ -52,7 +52,7 @@ class Connection {
     const weHaveDoc = this._getState(docId) !== undefined
 
     // If they sent changes, apply them to our document
-    if (changes) this._docSet.applyChanges(docId, fromJS(changes))
+    if (changes) this._docSet.applyChanges(docId, changes)
     // If they didn't send changes and we have the document, treat it as a request for our latest changes
     else if (weHaveDoc) this._maybeSendChanges(docId)
     // If they didn't send changes and we don't have the document, treat it as an advertisement and request the document
