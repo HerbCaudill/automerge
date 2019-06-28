@@ -70,7 +70,8 @@ class Connection {
     const clockMap = this._clock[which]
     const oldClock = clockMap.get(docId, Map())
     // Merge the clocks, keeping the maximum sequence number for each node
-    const newClock = oldClock.mergeWith((x, y) => Math.max(x, y), clock)
+    const largestWins = (x, y) => Math.max(x, y)
+    const newClock = oldClock.mergeWith(largestWins, clock)
     // Update the clockMap
     this._clock[which] = clockMap.set(docId, newClock)
   }
