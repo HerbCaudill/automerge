@@ -65,7 +65,7 @@ class Connection {
     if (changes) return this._docSet.applyChanges(docId, fromJS(changes))
     // If they didn't send changes and we have the document, treat it as a request for our latest changes
     else if (weHaveDoc) this.maybeSendChanges(docId)
-    // If the remote node has data that we don't, immediately ask for it.
+    // If they didn't send changes and we don't have the document, treat it as an advertisement and request the document
     else if (!this._clock.ours.has(docId)) this.sendMsg(docId, Map())
   }
 
