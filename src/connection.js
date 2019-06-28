@@ -98,6 +98,7 @@ class Connection {
   _maybeRequestChanges(docId) {
     const clock = this._getClockFromDoc(docId)
     const ourClock = this._getClockFromMap(docId, ours)
+    // If the document is newer than what we have, request changes
     if (!clock.equals(ourClock)) this._sendChanges(docId, clock)
   }
 
