@@ -67,7 +67,6 @@ class Connection {
     else if (weHaveDoc) this.maybeSendChanges(docId)
     // If the remote node has data that we don't, immediately ask for it.
     else if (!this._clock.ours.has(docId)) this.sendMsg(docId, Map())
-    else return this._docSet.getDoc(docId)
   }
 
   // Private methods
