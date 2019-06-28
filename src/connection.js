@@ -56,7 +56,7 @@ class Connection {
     // If they didn't send changes and we have the document, treat it as a request for our latest changes
     else if (weHaveDoc) this._maybeSendChanges(docId)
     // If they didn't send changes and we don't have the document, treat it as an advertisement and request the document
-    else this._requestDoc(docId)
+    else this._advertise(docId)
 
     // Return the current state of the document
     return this._getState(docId)
@@ -119,12 +119,13 @@ class Connection {
 
   // A message with no changes is a request for changes
   _requestChanges(docId) {
-    const clock = this._getClockFromDoc(docId) || {}
+    const clock = this._getClockFromDoc(docId)
     this._sendMsg({ docId, clock: clock.toJS() })
   }
 
-  // A message with a docId and an empty clock is a request for a document
-  _requestDoc(docId) {
+  // A message with a docId and an empty clock is a request for a document (if we don't have it)
+  // or an advertisement that we have the document (if we do)
+  _advertise(docId) {
     this._sendMsg({ docId, clock: {} })
   }
 
