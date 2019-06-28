@@ -65,21 +65,15 @@ class Connection {
 
   // Callback that is called by the docSet whenever a document is changed
   _docChanged(docId, doc) {
-    const state = Frontend.getBackendState(doc)
     const clock = this._getClock(docId)
-    if (!clock) {
-      throw new TypeError(ERR_NOCLOCK)
-    }
 
-    if (!lessOrEqual(this._clock.ours.get(docId, Map()), clock)) {
-      throw new RangeError(ERR_OLDCLOCK)
-    }
+    // Make sure doc has a clock (i.e. is an automerge object)
+    if (!clock) throw new TypeError(ERR_NOCLOCK)
+
+    // Make sure the document is newer than what we already have
+    if (!lessOrEqual(this._clock.ours.get(docId, Map()), clock)) throw new RangeError(ERR_OLDCLOCK)
 
     this._maybeSendChanges(docId)
-  }
-
-  _getClock(docId) {
-    return this._getState(docId).getIn(['opSet', 'clock'])
   }
 
   _maybeSendChanges(docId) {
@@ -122,6 +116,10 @@ class Connection {
   _getState(docId) {
     const doc = this._docSet.getDoc(docId)
     if (doc) return Frontend.getBackendState(doc)
+  }
+
+  _getClock(docId) {
+    return this._getState(docId).getIn(['opSet', 'clock'])
   }
 }
 
