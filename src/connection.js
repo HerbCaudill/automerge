@@ -89,26 +89,29 @@ class Connection {
 
     // If we have changes they don't have, send them
     const changes = Backend.getMissingChanges(ourState, theirClock)
-    if (changes.length > 0) this._sendChanges(docId, clock, changes)
+    if (changes.length > 0) this._sendChanges(docId, changes)
   }
 
-  _sendChanges(docId, clock, changes) {
-    this._updateClock(ours, docId, clock)
+  _sendChanges(docId, changes) {
+    const clock = this._getClockFromDoc(docId)
     this._sendMsg({ docId, clock: clock.toJS(), changes })
+    this._updateClock(ours, docId, clock)
   }
 
   _maybeRequestChanges(docId) {
     const clock = this._getClockFromDoc(docId)
     const ourClock = this._getClockFromMap(docId, ours)
     // If the document is newer than what we have, request changes
-    if (!lessOrEqual(clock, ourClock)) this._requestChanges(docId, clock)
+    if (!lessOrEqual(clock, ourClock)) this._requestChanges(docId)
   }
 
   // A message with no changes is a request for changes
-  _requestChanges(docId, clock = this._getClockFromDoc(docId) || {}) {
+  _requestChanges(docId) {
+    const clock = this._getClockFromDoc(docId) || {}
     this._sendMsg({ docId, clock: clock.toJS() })
   }
 
+  // A message with a docId and an empty clock is a request for a document
   _requestDoc(docId) {
     this._sendMsg({ docId, clock: {} })
   }
@@ -116,7 +119,6 @@ class Connection {
   // Updates the vector clock for `docId` in the given `clockMap` (mapping from docId to vector clock) by merging in
   // the new vector clock `clock`, setting each node's sequence number has been set to the maximum for that node.
   _updateClock(which, docId, clock) {
-    clock = fromJS(clock)
     const clockMap = this._clock[which]
     const oldClock = clockMap.get(docId, Map())
     // Merge the clocks, keeping the maximum sequence number for each node
