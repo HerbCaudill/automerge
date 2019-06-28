@@ -77,6 +77,7 @@ class Connection {
     this._maybeSendChanges(docId)
   }
 
+  // Send changes if we have more recent information than they do
   _maybeSendChanges(docId) {
     const theirClock = this._getClockFromMap(docId, theirs)
 
@@ -84,6 +85,7 @@ class Connection {
     const ourState = this._getState(docId)
 
     if (this._clock.theirs.has(docId)) {
+      // If we have changes they don't have, send them
       const changes = Backend.getMissingChanges(ourState, theirClock)
       if (changes.length > 0) {
         this._updateClock(theirs, docId, clock)
@@ -99,13 +101,13 @@ class Connection {
     const clock = this._getClockFromDoc(docId)
     const ourClock = this._getClockFromMap(docId, ours)
     // If the document is newer than what we have, request changes
-    if (!clock.equals(ourClock)) this._sendChanges(docId, clock)
+    if (!lessOrEqual(clock, ourClock)) this._sendChanges(docId, clock)
   }
 
   _sendChanges(docId, clock, changes) {
     const msg = { docId, clock: clock.toJS() }
-    this._updateClock(ours, docId, clock)
     if (changes) msg.changes = changes
+    this._updateClock(ours, docId, clock)
     this._sendMsg(msg)
   }
 
