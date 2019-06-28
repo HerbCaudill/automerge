@@ -86,14 +86,12 @@ class Connection {
     const clock = this._getClockFromDoc(docId)
     const ourState = this._getState(docId)
 
-    if (this._clock.theirs.has(docId)) {
-      // If we have changes they don't have, send them
-      const changes = Backend.getMissingChanges(ourState, theirClock)
-      if (changes.length > 0) {
-        this._updateClock(theirs, docId, clock)
-        this._sendChanges(docId, clock, changes)
-        return
-      }
+    // If we have changes they don't have, send them
+    const changes = Backend.getMissingChanges(ourState, theirClock)
+    if (changes.length > 0) {
+      this._updateClock(theirs, docId, clock)
+      this._sendChanges(docId, clock, changes)
+      return
     }
   }
 
