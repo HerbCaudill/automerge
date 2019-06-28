@@ -36,6 +36,7 @@ class Connection {
     this._sendMsg = sendMsg
     this._theirClock = Map()
     this._ourClock = Map()
+    this._clock = { ours: this._theirClock, theirs: this._ourClock }
   }
 
   open() {
@@ -113,5 +114,8 @@ class Connection {
     this.maybeSendChanges(docId)
   }
 }
+
+const ours = 'ours'
+const theirs = 'theirs'
 
 module.exports = Connection
