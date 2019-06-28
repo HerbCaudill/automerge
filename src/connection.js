@@ -39,6 +39,8 @@ class Connection {
     this._clock = { ours: this._theirClock, theirs: this._ourClock }
   }
 
+  // Public API
+
   open() {
     // Process initial state of each existing doc
     for (let docId of this._docSet.docIds) this.docChanged(docId, this._docSet.getDoc(docId))
@@ -54,6 +56,7 @@ class Connection {
 
   // Called by the network stack whenever it receives a message from a peer
   receiveMsg({ docId, clock, changes }) {
+    // Record their clock value for this document
     if (clock) this._updateClock(theirs, docId, clock)
 
     const weHaveDoc = this._docSet.getDoc(docId) !== undefined
@@ -66,6 +69,8 @@ class Connection {
     else if (!this._clock.ours.has(docId)) this.sendMsg(docId, Map())
     else return this._docSet.getDoc(docId)
   }
+
+  // Private methods
 
   _updateClock(which, docId, clock) {
     this._clock[which] = clockUnion(this._clock[which], docId, fromJS(clock))
