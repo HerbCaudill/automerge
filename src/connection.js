@@ -53,28 +53,27 @@ class Connection {
   }
 
   // Called by the network stack whenever it receives a message from a peer
-  receiveMsg(msg) {
-    if (msg.clock) {
-      this._theirClock = clockUnion(this._theirClock, msg.docId, fromJS(msg.clock))
+  receiveMsg({ docId, clock, changes }) {
+    if (clock) {
+      this._clock.theirs = clockUnion(this._clock.theirs, docId, fromJS(clock))
     }
-    if (msg.changes) {
-      return this._docSet.applyChanges(msg.docId, fromJS(msg.changes))
+    if (changes) {
+      return this._docSet.applyChanges(docId, fromJS(changes))
     }
 
-    if (this._docSet.getDoc(msg.docId)) {
-      this.maybeSendChanges(msg.docId)
-    } else if (!this._ourClock.has(msg.docId)) {
+    if (this._docSet.getDoc(docId)) {
+      this.maybeSendChanges(docId)
+    } else if (!this._clock.ours.has(docId)) {
       // If the remote node has data that we don't, immediately ask for it.
-      // TODO should we sometimes exercise restraint in what we ask for?
-      this.sendMsg(msg.docId, Map())
+      this.sendMsg(docId, Map())
     }
 
-    return this._docSet.getDoc(msg.docId)
+    return this._docSet.getDoc(docId)
   }
 
   sendMsg(docId, clock, changes) {
     const msg = { docId, clock: clock.toJS() }
-    this._ourClock = clockUnion(this._ourClock, docId, clock)
+    this._clock.ours = clockUnion(this._clock.ours, docId, clock)
     if (changes) msg.changes = changes
     this._sendMsg(msg)
   }
@@ -84,16 +83,16 @@ class Connection {
     const state = Frontend.getBackendState(doc)
     const clock = state.getIn(['opSet', 'clock'])
 
-    if (this._theirClock.has(docId)) {
-      const changes = Backend.getMissingChanges(state, this._theirClock.get(docId))
+    if (this._clock.theirs.has(docId)) {
+      const changes = Backend.getMissingChanges(state, this._clock.theirs.get(docId))
       if (changes.length > 0) {
-        this._theirClock = clockUnion(this._theirClock, docId, clock)
+        this._clock.theirs = clockUnion(this._clock.theirs, docId, clock)
         this.sendMsg(docId, clock, changes)
         return
       }
     }
 
-    if (!clock.equals(this._ourClock.get(docId, Map()))) this.sendMsg(docId, clock)
+    if (!clock.equals(this._clock.ours.get(docId, Map()))) this.sendMsg(docId, clock)
   }
 
   // Callback that is called by the docSet whenever a document is changed
@@ -107,7 +106,7 @@ class Connection {
       )
     }
 
-    if (!lessOrEqual(this._ourClock.get(docId, Map()), clock)) {
+    if (!lessOrEqual(this._clock.ours.get(docId, Map()), clock)) {
       throw new RangeError('Cannot pass an old state object to a connection')
     }
 
