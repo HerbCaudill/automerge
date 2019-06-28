@@ -53,9 +53,9 @@ class Connection {
 
     // If they sent changes, apply them to our document
     if (changes) this._docSet.applyChanges(docId, changes)
-    // If they didn't send changes and we have the document, treat it as a request for our latest changes
+    // If no changes and we have the document, treat it as a request for our latest changes
     else if (weHaveDoc) this._maybeSendChanges(docId)
-    // If they didn't send changes and we don't have the document, treat it as an advertisement and request the document
+    // If no changes and we don't have the document, treat it as an advertisement and request it
     else this._advertise(docId)
 
     // Return the current state of the document
@@ -65,7 +65,7 @@ class Connection {
   // Private methods
 
   _validateDoc(docId) {
-    const ourClock = this._getClockFromMap(docId, ours)
+    const ourClock = this._getClock(docId, ours)
     const clock = this._getClockFromDoc(docId)
 
     // Make sure doc has a clock (i.e. is an automerge object)
@@ -93,7 +93,7 @@ class Connection {
 
   // Send changes if we have more recent information than they do
   _maybeSendChanges(docId) {
-    const theirClock = this._getClockFromMap(docId, theirs)
+    const theirClock = this._getClock(docId, theirs)
     if (!theirClock) return
 
     const ourState = this._getState(docId)
@@ -112,25 +112,26 @@ class Connection {
   // Request changes if we're out of date
   _maybeRequestChanges(docId) {
     const clock = this._getClockFromDoc(docId)
-    const ourClock = this._getClockFromMap(docId, ours)
+    const ourClock = this._getClock(docId, ours)
     // If the document is newer than what we have, request changes
     if (!lessOrEqual(clock, ourClock)) this._requestChanges(docId)
   }
 
-  // A message with no changes is a request for changes
+  // A message with no changes and a clock is a request for changes
   _requestChanges(docId) {
     const clock = this._getClockFromDoc(docId)
     this._sendMsg({ docId, clock: clock.toJS() })
   }
 
-  // A message with a docId and an empty clock is a request for a document (if we don't have it)
-  // or an advertisement that we have the document (if we do)
+  // A message with a docId and an empty clock is an advertisement for the document
+  // (if we have it) or a request for the document (if we don't)
   _advertise(docId) {
     this._sendMsg({ docId, clock: {} })
   }
 
-  // Updates the vector clock for `docId` in the given `clockMap` (mapping from docId to vector clock) by merging in
-  // the new vector clock `clock`, setting each node's sequence number has been set to the maximum for that node.
+  // Updates the vector clock for `docId` in the given `clockMap` (mapping from docId to vector
+  // clock) by merging in the new vector clock `clock`, setting each node's sequence number has been
+  // set to the maximum for that node.
   _updateClock(which, docId, clock = this._getClockFromDoc(docId)) {
     const clockMap = this._clock[which]
     const oldClock = clockMap.get(docId, Map())
@@ -146,7 +147,7 @@ class Connection {
     if (doc) return Frontend.getBackendState(doc)
   }
 
-  _getClockFromMap(docId, which) {
+  _getClock(docId, which) {
     const initialClockValue =
       which === ours
         ? Map() // our default clock value is an empty clock
