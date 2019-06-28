@@ -39,11 +39,15 @@ class Connection {
   }
 
   open() {
+    // Process initial state of each existing doc
     for (let docId of this._docSet.docIds) this.docChanged(docId, this._docSet.getDoc(docId))
+
+    // Subscribe to docSet changes
     this._docSet.registerHandler(this.docChanged.bind(this))
   }
 
   close() {
+    // Unsubscribe from docSet changes
     this._docSet.unregisterHandler(this.docChanged.bind(this))
   }
 
