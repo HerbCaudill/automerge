@@ -58,7 +58,7 @@ class Connection {
     // If they didn't send changes and we have the document, treat it as a request for our latest changes
     else if (weHaveDoc) this._maybeSendChanges(docId)
     // If they didn't send changes and we don't have the document, treat it as an advertisement and request the document
-    else if (!this._clock.ours.has(docId)) this._sendChanges(docId, Map())
+    else if (!this._clock.ours.has(docId)) this._requestDoc(docId)
   }
 
   // Private methods
@@ -75,11 +75,13 @@ class Connection {
     if (!lessOrEqual(ourClock, clock)) throw new RangeError(ERR_OLDCLOCK)
 
     this._maybeSendChanges(docId)
+    this._maybeRequestChanges(docId)
   }
 
   // Send changes if we have more recent information than they do
   _maybeSendChanges(docId) {
     const theirClock = this._getClockFromMap(docId, theirs)
+    if (!theirClock) return
 
     const clock = this._getClockFromDoc(docId)
     const ourState = this._getState(docId)
@@ -93,15 +95,6 @@ class Connection {
         return
       }
     }
-
-    this._maybeRequestChanges(docId)
-  }
-
-  _maybeRequestChanges(docId) {
-    const clock = this._getClockFromDoc(docId)
-    const ourClock = this._getClockFromMap(docId, ours)
-    // If the document is newer than what we have, request changes
-    if (!lessOrEqual(clock, ourClock)) this._sendChanges(docId, clock)
   }
 
   _sendChanges(docId, clock, changes) {
@@ -109,6 +102,23 @@ class Connection {
     if (changes) msg.changes = changes
     this._updateClock(ours, docId, clock)
     this._sendMsg(msg)
+  }
+
+  _maybeRequestChanges(docId) {
+    const clock = this._getClockFromDoc(docId)
+    const ourClock = this._getClockFromMap(docId, ours)
+    // If the document is newer than what we have, request changes
+    if (!lessOrEqual(clock, ourClock)) this._requestChanges(docId, clock)
+  }
+
+  // A message with no changes is a request for changes
+  _requestChanges(docId, clock = this._getClockFromDoc(docId) || {}) {
+    this._updateClock(ours, docId, clock)
+    this._sendMsg({ docId, clock: clock.toJS() })
+  }
+
+  _requestDoc(docId) {
+    this._sendMsg({ docId, clock: {} })
   }
 
   // Updates the vector clock for `docId` in the given `clockMap` (mapping from docId to vector clock) by merging in
