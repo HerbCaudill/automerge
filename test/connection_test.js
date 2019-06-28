@@ -181,7 +181,7 @@ describe('Automerge.Connection', () => {
     ])
 
     assert.strictEqual(nodes[1].getDoc('doc1').doc1, 'doc1++')
-    assert.strictEqual(nodes[1].getDoc('doc1').doc1, 'doc1++')
+    assert.strictEqual(nodes[2].getDoc('doc1').doc1, 'doc1++')
   })
 
   it('should bidirectionally merge divergent document copies', () => {
@@ -227,7 +227,7 @@ describe('Automerge.Connection', () => {
 
     assert.deepEqual(nodes[1].getDoc('doc1'),
                      {doc1: 'doc1', one: 'one', two: 'two'})
-    assert.deepEqual(nodes[1].getDoc('doc1'),
+    assert.deepEqual(nodes[2].getDoc('doc1'),
                      {doc1: 'doc1', one: 'one', two: 'two'})
   })
 
