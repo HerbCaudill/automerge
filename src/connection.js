@@ -16,7 +16,7 @@ const Backend = require('../backend')
 // call `setDoc()` on the docSet. The connection registers a callback on the docSet, and it figures
 // out whenever there are changes that need to be sent to the remote peer.
 //
-// "`theirClock"` is the most recent VCl ock that we think the peer has (either because they've told us
+// "`theirClock"` is the most recent VClock that we think the peer has (either because they've told us
 // that it's their clock, or because it corresponds to a state we have sent to them on this
 // connection). Thus, everything more recent than theirClock should be sent to the peer.
 //
@@ -119,8 +119,8 @@ class Connection {
 
   // A message with no changes is a request for changes
   _requestChanges(docId) {
-    const clock = this._getClockFromDoc(docId) || {}
-    this._sendMsg({ docId, clock: clock.toJS() })
+    const clock = this._getClockFromDoc(docId).toJS() || {}
+    this._sendMsg({ docId, clock: clock })
   }
 
   // A message with a docId and an empty clock is a request for a document
