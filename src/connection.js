@@ -54,7 +54,7 @@ class Connection {
     // If they sent changes, apply them to our document
     if (changes) this._docSet.applyChanges(docId, changes)
     // If no changes and we have the document, treat it as a request for our latest changes
-    else if (weHaveDoc) this._maybeSendChanges(docId)
+    else if (weHaveDoc) this._maybeSendChanges(docId, clock)
     // If no changes and we don't have the document, treat it as an advertisement and request it
     else this._advertise(docId)
 
@@ -64,9 +64,8 @@ class Connection {
 
   // Private methods
 
-  _validateDoc(docId) {
+  _validateDoc(docId, clock) {
     const ourClock = this._getClock(docId, ours)
-    const clock = this._getClockFromDoc(docId)
 
     // Make sure doc has a clock (i.e. is an automerge object)
     if (!clock) throw new TypeError(ERR_NOCLOCK)
@@ -76,19 +75,21 @@ class Connection {
   }
 
   _registerDoc(docId) {
-    this._validateDoc(docId)
+    const clock = this._getClockFromDoc(docId)
+    this._validateDoc(docId, clock)
     // Advertise the document
-    this._requestChanges(docId)
+    this._requestChanges(docId, clock)
     // Record the doc's initial clock
-    this._updateClock(ours, docId)
+    this._updateClock(ours, docId, clock)
   }
 
   // Callback that is called by the docSet whenever a document is changed
   _docChanged(docId, doc) {
-    this._validateDoc(docId)
+    const clock = this._getClockFromDoc(docId)
+    this._validateDoc(docId, clock)
     this._maybeSendChanges(docId)
-    this._maybeRequestChanges(docId)
-    this._updateClock(ours, docId)
+    this._maybeRequestChanges(docId, clock)
+    this._updateClock(ours, docId, clock)
   }
 
   // Send changes if we have more recent information than they do
@@ -110,16 +111,14 @@ class Connection {
   }
 
   // Request changes if we're out of date
-  _maybeRequestChanges(docId) {
-    const clock = this._getClockFromDoc(docId)
+  _maybeRequestChanges(docId, clock = this._getClockFromDoc(docId)) {
     const ourClock = this._getClock(docId, ours)
     // If the document is newer than what we have, request changes
-    if (!lessOrEqual(clock, ourClock)) this._requestChanges(docId)
+    if (!lessOrEqual(clock, ourClock)) this._requestChanges(docId, clock)
   }
 
   // A message with no changes and a clock is a request for changes
-  _requestChanges(docId) {
-    const clock = this._getClockFromDoc(docId)
+  _requestChanges(docId, clock = this._getClockFromDoc(docId)) {
     this._sendMsg({ docId, clock: clock.toJS() })
   }
 
