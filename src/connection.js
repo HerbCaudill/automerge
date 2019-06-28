@@ -78,12 +78,14 @@ class Connection {
   }
 
   _maybeSendChanges(docId) {
+    const theirClock = this._clock.theirs.get(docId)
+
     const doc = this._docSet.getDoc(docId)
-    const state = Frontend.getBackendState(doc)
     const clock = this._getClock(docId)
+    const ourState = this._getState(docId)
 
     if (this._clock.theirs.has(docId)) {
-      const changes = Backend.getMissingChanges(state, this._clock.theirs.get(docId))
+      const changes = Backend.getMissingChanges(ourState, theirClock)
       if (changes.length > 0) {
         this._updateClock(theirs, docId, clock)
         this._sendChanges(docId, clock, changes)
