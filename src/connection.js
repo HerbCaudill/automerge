@@ -16,19 +16,17 @@ const Backend = require('../backend')
 // call `setDoc()` on the docSet. The connection registers a callback on the docSet, and it figures
 // out whenever there are changes that need to be sent to the remote peer.
 //
-// theirClock is the most recent VClock that we think the peer has (either because they've told us
+// "`theirClock"` is the most recent VCl ock that we think the peer has (either because they've told us
 // that it's their clock, or because it corresponds to a state we have sent to them on this
 // connection). Thus, everything more recent than theirClock should be sent to the peer.
 //
-// ourClock is the most recent VClock that we've advertised to the peer (i.e. where we've
+// `ourClock` is the most recent VClock that we've advertised to the peer (i.e. where we've
 // told the peer that we have it).
 class Connection {
   constructor(docSet, sendMsg) {
     this._docSet = docSet
     this._sendMsg = sendMsg
-    this._theirClock = Map()
-    this._ourClock = Map()
-    this._clock = { ours: this._theirClock, theirs: this._ourClock }
+    this._clock = { ours: Map(), theirs: Map() }
   }
 
   // Public API
