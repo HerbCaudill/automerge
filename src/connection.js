@@ -51,6 +51,26 @@ class Connection {
     this._docSet.unregisterHandler(this.docChanged.bind(this))
   }
 
+  // Called by the network stack whenever it receives a message from a peer
+  receiveMsg(msg) {
+    if (msg.clock) {
+      this._theirClock = clockUnion(this._theirClock, msg.docId, fromJS(msg.clock))
+    }
+    if (msg.changes) {
+      return this._docSet.applyChanges(msg.docId, fromJS(msg.changes))
+    }
+
+    if (this._docSet.getDoc(msg.docId)) {
+      this.maybeSendChanges(msg.docId)
+    } else if (!this._ourClock.has(msg.docId)) {
+      // If the remote node has data that we don't, immediately ask for it.
+      // TODO should we sometimes exercise restraint in what we ask for?
+      this.sendMsg(msg.docId, Map())
+    }
+
+    return this._docSet.getDoc(msg.docId)
+  }
+
   sendMsg(docId, clock, changes) {
     const msg = { docId, clock: clock.toJS() }
     this._ourClock = clockUnion(this._ourClock, docId, clock)
@@ -91,25 +111,6 @@ class Connection {
     }
 
     this.maybeSendChanges(docId)
-  }
-
-  receiveMsg(msg) {
-    if (msg.clock) {
-      this._theirClock = clockUnion(this._theirClock, msg.docId, fromJS(msg.clock))
-    }
-    if (msg.changes) {
-      return this._docSet.applyChanges(msg.docId, fromJS(msg.changes))
-    }
-
-    if (this._docSet.getDoc(msg.docId)) {
-      this.maybeSendChanges(msg.docId)
-    } else if (!this._ourClock.has(msg.docId)) {
-      // If the remote node has data that we don't, immediately ask for it.
-      // TODO should we sometimes exercise restraint in what we ask for?
-      this.sendMsg(msg.docId, Map())
-    }
-
-    return this._docSet.getDoc(msg.docId)
   }
 }
 
