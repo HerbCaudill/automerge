@@ -73,6 +73,7 @@ class Connection {
   }
 
   _registerDoc(docId) {
+    this._validateDoc(docId)
     // Advertise the document
     this._requestChanges(docId)
     // Record the doc's initial clock
@@ -81,15 +82,8 @@ class Connection {
 
   // Callback that is called by the docSet whenever a document is changed
   _docChanged(docId, doc) {
-    const ourClock = this._getClockFromMap(docId, ours)
     const clock = this._getClockFromDoc(docId)
-
-    // Make sure doc has a clock (i.e. is an automerge object)
-    if (!clock) throw new TypeError(ERR_NOCLOCK)
-
-    // Make sure the document is newer than what we already have
-    if (!lessOrEqual(ourClock, clock)) throw new RangeError(ERR_OLDCLOCK)
-
+    this._validateDoc(docId)
     this._maybeSendChanges(docId)
     this._maybeRequestChanges(docId)
     this._updateClock(ours, docId, clock)
