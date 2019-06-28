@@ -26,7 +26,7 @@ class Connection {
   constructor(docSet, sendMsg) {
     this._docSet = docSet
     this._sendMsg = sendMsg
-    this._clock = { ours: Map(), theirs: Map() }
+    this._clock = { ours: new Map(), theirs: new Map() }
   }
 
   // Public API
@@ -133,7 +133,7 @@ class Connection {
   // set to the maximum for that node.
   _updateClock(which, docId, clock = this._getClockFromDoc(docId)) {
     const clockMap = this._clock[which]
-    const oldClock = clockMap.get(docId, Map())
+    const oldClock = clockMap.get(docId, new Map())
     // Merge the clocks, keeping the maximum sequence number for each node
     const largestWins = (x, y) => Math.max(x, y)
     const newClock = oldClock.mergeWith(largestWins, clock)
@@ -149,7 +149,7 @@ class Connection {
   _getClock(docId, which) {
     const initialClockValue =
       which === ours
-        ? Map() // our default clock value is an empty clock
+        ? new Map() // our default clock value is an empty clock
         : undefined // their default clock value is undefined
     return this._clock[which].get(docId, initialClockValue)
   }
