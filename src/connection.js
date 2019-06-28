@@ -65,8 +65,8 @@ class Connection {
 
   // Callback that is called by the docSet whenever a document is changed
   _docChanged(docId, doc) {
-    const ourClock = this._clock.ours.get(docId, Map())
-    const clock = this._getClock(docId)
+    const ourClock = this._getClockFromMap(docId, ours)
+    const clock = this._getClockFromDoc(docId)
 
     // Make sure doc has a clock (i.e. is an automerge object)
     if (!clock) throw new TypeError(ERR_NOCLOCK)
@@ -78,9 +78,9 @@ class Connection {
   }
 
   _maybeSendChanges(docId) {
-    const theirClock = this._clock.theirs.get(docId)
+    const theirClock = this._getClockFromMap(docId, theirs)
 
-    const clock = this._getClock(docId)
+    const clock = this._getClockFromDoc(docId)
     const ourState = this._getState(docId)
 
     if (this._clock.theirs.has(docId)) {
@@ -92,7 +92,7 @@ class Connection {
       }
     }
 
-    if (!clock.equals(this._clock.ours.get(docId, Map()))) this._sendChanges(docId, clock)
+    if (!clock.equals(this._getClockFromMap(docId, ours))) this._sendChanges(docId, clock)
   }
 
   _sendChanges(docId, clock, changes) {
@@ -120,7 +120,15 @@ class Connection {
     if (doc) return Frontend.getBackendState(doc)
   }
 
-  _getClock(docId) {
+  _getClockFromMap(docId, which) {
+    const initialClockValue =
+      which === ours
+        ? Map() // our default clock value is an empty clock
+        : undefined // their default clock value is undefined
+    return this._clock[which].get(docId, initialClockValue)
+  }
+
+  _getClockFromDoc(docId) {
     return this._getState(docId).getIn(['opSet', 'clock'])
   }
 }
