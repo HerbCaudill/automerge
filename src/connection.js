@@ -65,13 +65,14 @@ class Connection {
 
   // Callback that is called by the docSet whenever a document is changed
   _docChanged(docId, doc) {
+    const ourClock = this._clock.ours.get(docId, Map())
     const clock = this._getClock(docId)
 
     // Make sure doc has a clock (i.e. is an automerge object)
     if (!clock) throw new TypeError(ERR_NOCLOCK)
 
     // Make sure the document is newer than what we already have
-    if (!lessOrEqual(this._clock.ours.get(docId, Map()), clock)) throw new RangeError(ERR_OLDCLOCK)
+    if (!lessOrEqual(ourClock, clock)) throw new RangeError(ERR_OLDCLOCK)
 
     this._maybeSendChanges(docId)
   }
