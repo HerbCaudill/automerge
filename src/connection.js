@@ -76,6 +76,7 @@ class Connection {
 
     this._maybeSendChanges(docId)
     this._maybeRequestChanges(docId)
+    this._updateClock(ours, docId, clock)
   }
 
   // Send changes if we have more recent information than they do
@@ -88,10 +89,7 @@ class Connection {
 
     // If we have changes they don't have, send them
     const changes = Backend.getMissingChanges(ourState, theirClock)
-    if (changes.length > 0) {
-      this._updateClock(theirs, docId, clock)
-      this._sendChanges(docId, clock, changes)
-    }
+    if (changes.length > 0) this._sendChanges(docId, clock, changes)
   }
 
   _sendChanges(docId, clock, changes) {
