@@ -54,21 +54,17 @@ class Connection {
 
   // Called by the network stack whenever it receives a message from a peer
   receiveMsg({ docId, clock, changes }) {
-    if (clock) {
-      this._updateClock(theirs, docId, clock)
-    }
-    if (changes) {
-      return this._docSet.applyChanges(docId, fromJS(changes))
-    }
+    if (clock) this._updateClock(theirs, docId, clock)
 
-    if (this._docSet.getDoc(docId)) {
-      this.maybeSendChanges(docId)
-    } else if (!this._clock.ours.has(docId)) {
-      // If the remote node has data that we don't, immediately ask for it.
-      this.sendMsg(docId, Map())
-    }
+    const weHaveDoc = this._docSet.getDoc(docId) !== undefined
 
-    return this._docSet.getDoc(docId)
+    // If they sent changes, apply them to our document
+    if (changes) return this._docSet.applyChanges(docId, fromJS(changes))
+    // If they didn't send changes and we have the document, treat it as a request for our latest changes
+    else if (weHaveDoc) this.maybeSendChanges(docId)
+    // If the remote node has data that we don't, immediately ask for it.
+    else if (!this._clock.ours.has(docId)) this.sendMsg(docId, Map())
+    else return this._docSet.getDoc(docId)
   }
 
   _updateClock(which, docId, clock) {
