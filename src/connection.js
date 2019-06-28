@@ -119,8 +119,8 @@ class Connection {
 
   // A message with no changes is a request for changes
   _requestChanges(docId) {
-    const clock = this._getClockFromDoc(docId).toJS() || {}
-    this._sendMsg({ docId, clock: clock })
+    const clock = this._getClockFromDoc(docId) || {}
+    this._sendMsg({ docId, clock: clock.toJS() })
   }
 
   // A message with a docId and an empty clock is a request for a document
