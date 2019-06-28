@@ -94,7 +94,6 @@ class Connection {
     const theirClock = this._getClockFromMap(docId, theirs)
     if (!theirClock) return
 
-    const clock = this._getClockFromDoc(docId)
     const ourState = this._getState(docId)
 
     // If we have changes they don't have, send them
