@@ -52,11 +52,14 @@ class Connection {
     const weHaveDoc = this._getState(docId) !== undefined
 
     // If they sent changes, apply them to our document
-    if (changes) return this._docSet.applyChanges(docId, fromJS(changes))
+    if (changes) this._docSet.applyChanges(docId, fromJS(changes))
     // If they didn't send changes and we have the document, treat it as a request for our latest changes
     else if (weHaveDoc) this._maybeSendChanges(docId)
     // If they didn't send changes and we don't have the document, treat it as an advertisement and request the document
-    else if (!this._clock.ours.has(docId)) this._requestDoc(docId)
+    else this._requestDoc(docId)
+
+    // Return the current state of the document
+    return this._getState(docId)
   }
 
   // Private methods
@@ -82,11 +85,10 @@ class Connection {
 
   // Callback that is called by the docSet whenever a document is changed
   _docChanged(docId, doc) {
-    const clock = this._getClockFromDoc(docId)
     this._validateDoc(docId)
     this._maybeSendChanges(docId)
     this._maybeRequestChanges(docId)
-    this._updateClock(ours, docId, clock)
+    this._updateClock(ours, docId)
   }
 
   // Send changes if we have more recent information than they do
@@ -104,9 +106,10 @@ class Connection {
   _sendChanges(docId, changes) {
     const clock = this._getClockFromDoc(docId)
     this._sendMsg({ docId, clock: clock.toJS(), changes })
-    this._updateClock(ours, docId, clock)
+    this._updateClock(ours, docId)
   }
 
+  // Request changes if we're out of date
   _maybeRequestChanges(docId) {
     const clock = this._getClockFromDoc(docId)
     const ourClock = this._getClockFromMap(docId, ours)
@@ -127,7 +130,7 @@ class Connection {
 
   // Updates the vector clock for `docId` in the given `clockMap` (mapping from docId to vector clock) by merging in
   // the new vector clock `clock`, setting each node's sequence number has been set to the maximum for that node.
-  _updateClock(which, docId, clock) {
+  _updateClock(which, docId, clock = this._getClockFromDoc(docId)) {
     const clockMap = this._clock[which]
     const oldClock = clockMap.get(docId, Map())
     // Merge the clocks, keeping the maximum sequence number for each node
