@@ -33,7 +33,7 @@ class Connection {
 
   open() {
     // Process initial state of each existing doc
-    for (let docId of this._docSet.docIds) this._docChanged(docId, this._docSet.getDoc(docId))
+    for (let docId of this._docSet.docIds) this._registerDoc(docId)
 
     // Subscribe to docSet changes
     this._docSet.registerHandler(this._docChanged.bind(this))
@@ -60,6 +60,24 @@ class Connection {
   }
 
   // Private methods
+
+  _validateDoc(docId) {
+    const ourClock = this._getClockFromMap(docId, ours)
+    const clock = this._getClockFromDoc(docId)
+
+    // Make sure doc has a clock (i.e. is an automerge object)
+    if (!clock) throw new TypeError(ERR_NOCLOCK)
+
+    // Make sure the document is newer than what we already have
+    if (!lessOrEqual(ourClock, clock)) throw new RangeError(ERR_OLDCLOCK)
+  }
+
+  _registerDoc(docId) {
+    // Advertise the document
+    this._requestChanges(docId)
+    // Record the doc's initial clock
+    this._updateClock(ours, docId)
+  }
 
   // Callback that is called by the docSet whenever a document is changed
   _docChanged(docId, doc) {
