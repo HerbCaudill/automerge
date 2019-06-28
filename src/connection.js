@@ -51,7 +51,7 @@ class Connection {
     // Record their clock value for this document
     if (clock) this._updateClock(theirs, docId, clock)
 
-    const weHaveDoc = this._docSet.getDoc(docId) !== undefined
+    const weHaveDoc = this._getState(docId) !== undefined
 
     // If they sent changes, apply them to our document
     if (changes) return this._docSet.applyChanges(docId, fromJS(changes))
@@ -63,24 +63,23 @@ class Connection {
 
   // Private methods
 
-  // Updates the vector clock for `docId` in the given `clockMap` (mapping from docId to vector clock) by merging in
-  // the new vector clock `clock`, setting each node's sequence number has been set to the maximum for that node.
-  _updateClock(which, docId, clock) {
-    clock = fromJS(clock)
-    const clockMap = this._clock[which]
-    const oldClock = clockMap.get(docId, Map())
-    // Merge the clocks, keeping the maximum sequence number for each node
-    const largestWins = (x, y) => Math.max(x, y)
-    const newClock = oldClock.mergeWith(largestWins, clock)
-    // Update the clockMap
-    this._clock[which] = clockMap.set(docId, newClock)
+  // Callback that is called by the docSet whenever a document is changed
+  _docChanged(docId, doc) {
+    const state = Frontend.getBackendState(doc)
+    const clock = this._getClock(docId)
+    if (!clock) {
+      throw new TypeError(ERR_NOCLOCK)
+    }
+
+    if (!lessOrEqual(this._clock.ours.get(docId, Map()), clock)) {
+      throw new RangeError(ERR_OLDCLOCK)
+    }
+
+    this._maybeSendChanges(docId)
   }
 
-  _sendChanges(docId, clock, changes) {
-    const msg = { docId, clock: clock.toJS() }
-    this._updateClock(ours, docId, clock)
-    if (changes) msg.changes = changes
-    this._sendMsg(msg)
+  _getClock(docId) {
+    return this._getState(docId).getIn(['opSet', 'clock'])
   }
 
   _maybeSendChanges(docId) {
@@ -100,24 +99,36 @@ class Connection {
     if (!clock.equals(this._clock.ours.get(docId, Map()))) this._sendChanges(docId, clock)
   }
 
-  // Callback that is called by the docSet whenever a document is changed
-  _docChanged(docId, doc) {
-    const state = Frontend.getBackendState(doc)
-    const clock = state.getIn(['opSet', 'clock'])
-    if (!clock) {
-      throw new TypeError(
-        'This object cannot be used for network sync. ' +
-          'Are you trying to sync a snapshot from the history?'
-      )
-    }
+  _sendChanges(docId, clock, changes) {
+    const msg = { docId, clock: clock.toJS() }
+    this._updateClock(ours, docId, clock)
+    if (changes) msg.changes = changes
+    this._sendMsg(msg)
+  }
 
-    if (!lessOrEqual(this._clock.ours.get(docId, Map()), clock)) {
-      throw new RangeError('Cannot pass an old state object to a connection')
-    }
+  // Updates the vector clock for `docId` in the given `clockMap` (mapping from docId to vector clock) by merging in
+  // the new vector clock `clock`, setting each node's sequence number has been set to the maximum for that node.
+  _updateClock(which, docId, clock) {
+    clock = fromJS(clock)
+    const clockMap = this._clock[which]
+    const oldClock = clockMap.get(docId, Map())
+    // Merge the clocks, keeping the maximum sequence number for each node
+    const largestWins = (x, y) => Math.max(x, y)
+    const newClock = oldClock.mergeWith(largestWins, clock)
+    // Update the clockMap
+    this._clock[which] = clockMap.set(docId, newClock)
+  }
 
-    this._maybeSendChanges(docId)
+  _getState(docId) {
+    const doc = this._docSet.getDoc(docId)
+    if (doc) return Frontend.getBackendState(doc)
   }
 }
+
+const ERR_OLDCLOCK = 'Cannot pass an old state object to a connection'
+const ERR_NOCLOCK =
+  'This object cannot be used for network sync. ' +
+  'Are you trying to sync a snapshot from the history?'
 
 const ours = 'ours'
 const theirs = 'theirs'
