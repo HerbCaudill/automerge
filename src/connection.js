@@ -1,15 +1,7 @@
-const { Map, fromJS } = require('immutable')
+const { Map } = require('immutable')
 const { lessOrEqual } = require('./common')
 const Frontend = require('../frontend')
 const Backend = require('../backend')
-
-// Updates the vector clock for `docId` in `clockMap` (mapping from docId to vector clock)
-// by merging in the new vector clock `clock`. Returns the updated `clockMap`, in which each node's
-// sequence number has been set to the maximum for that node.
-function clockUnion(clockMap, docId, clock) {
-  clock = clockMap.get(docId, Map()).mergeWith((x, y) => Math.max(x, y), clock)
-  return clockMap.set(docId, clock)
-}
 
 // Keeps track of the communication with one particular peer. Allows updates for many documents to
 // be multiplexed over a single connection.
@@ -24,88 +16,155 @@ function clockUnion(clockMap, docId, clock) {
 // call `setDoc()` on the docSet. The connection registers a callback on the docSet, and it figures
 // out whenever there are changes that need to be sent to the remote peer.
 //
-// theirClock is the most recent VClock that we think the peer has (either because they've told us
+// "`theirClock"` is the most recent VClock that we think the peer has (either because they've told us
 // that it's their clock, or because it corresponds to a state we have sent to them on this
 // connection). Thus, everything more recent than theirClock should be sent to the peer.
 //
-// ourClock is the most recent VClock that we've advertised to the peer (i.e. where we've
+// `ourClock` is the most recent VClock that we've advertised to the peer (i.e. where we've
 // told the peer that we have it).
 class Connection {
-  constructor (docSet, sendMsg) {
+  constructor(docSet, sendMsg) {
     this._docSet = docSet
     this._sendMsg = sendMsg
-    this._theirClock = Map()
-    this._ourClock = Map()
-    this._docChangedHandler = this.docChanged.bind(this)
+    this._clock = { ours: new Map(), theirs: new Map() }
   }
 
-  open () {
-    for (let docId of this._docSet.docIds) this.docChanged(docId, this._docSet.getDoc(docId))
-    this._docSet.registerHandler(this._docChangedHandler)
+  // Public API
+
+  open() {
+    // Process initial state of each existing doc
+    for (let docId of this._docSet.docIds) this._registerDoc(docId)
+
+    // Subscribe to docSet changes
+    this._docSet.registerHandler(this._docChanged.bind(this))
   }
 
-  close () {
-    this._docSet.unregisterHandler(this._docChangedHandler)
+  close() {
+    // Unsubscribe from docSet changes
+    this._docSet.unregisterHandler(this._docChanged.bind(this))
   }
 
-  sendMsg (docId, clock, changes) {
-    const msg = {docId, clock: clock.toJS()}
-    this._ourClock = clockUnion(this._ourClock, docId, clock)
-    if (changes) msg.changes = changes
-    this._sendMsg(msg)
+  // Called by the network stack whenever it receives a message from a peer
+  receiveMsg({ docId, clock, changes }) {
+    // Record their clock value for this document
+    if (clock) this._updateClock(theirs, docId, clock)
+
+    const weHaveDoc = this._getState(docId) !== undefined
+
+    // If they sent changes, apply them to our document
+    if (changes) this._docSet.applyChanges(docId, changes)
+    // If no changes and we have the document, treat it as a request for our latest changes
+    else if (weHaveDoc) this._maybeSendChanges(docId, clock)
+    // If no changes and we don't have the document, treat it as an advertisement and request it
+    else this._advertise(docId)
+
+    // Return the current state of the document
+    return this._getState(docId)
   }
 
-  maybeSendChanges (docId) {
-    const doc = this._docSet.getDoc(docId)
-    const state = Frontend.getBackendState(doc)
-    const clock = state.getIn(['opSet', 'clock'])
+  // Private methods
 
-    if (this._theirClock.has(docId)) {
-      const changes = Backend.getMissingChanges(state, this._theirClock.get(docId))
-      if (changes.length > 0) {
-        this._theirClock = clockUnion(this._theirClock, docId, clock)
-        this.sendMsg(docId, clock, changes)
-        return
-      }
-    }
+  _validateDoc(docId, clock) {
+    const ourClock = this._getClock(docId, ours)
 
-    if (!clock.equals(this._ourClock.get(docId, Map()))) this.sendMsg(docId, clock)
+    // Make sure doc has a clock (i.e. is an automerge object)
+    if (!clock) throw new TypeError(ERR_NOCLOCK)
+
+    // Make sure the document is newer than what we already have
+    if (!lessOrEqual(ourClock, clock)) throw new RangeError(ERR_OLDCLOCK)
+  }
+
+  _registerDoc(docId) {
+    const clock = this._getClockFromDoc(docId)
+    this._validateDoc(docId, clock)
+    // Advertise the document
+    this._requestChanges(docId, clock)
+    // Record the doc's initial clock
+    this._updateClock(ours, docId, clock)
   }
 
   // Callback that is called by the docSet whenever a document is changed
-  docChanged (docId, doc) {
-    const state = Frontend.getBackendState(doc)
-    const clock = state.getIn(['opSet', 'clock'])
-    if (!clock) {
-      throw new TypeError('This object cannot be used for network sync. ' +
-                          'Are you trying to sync a snapshot from the history?')
-    }
-
-    if (!lessOrEqual(this._ourClock.get(docId, Map()), clock)) {
-      throw new RangeError('Cannot pass an old state object to a connection')
-    }
-
-    this.maybeSendChanges(docId)
+  _docChanged(docId, doc) {
+    const clock = this._getClockFromDoc(docId)
+    this._validateDoc(docId, clock)
+    this._maybeSendChanges(docId)
+    this._maybeRequestChanges(docId, clock)
+    this._updateClock(ours, docId, clock)
   }
 
-  receiveMsg (msg) {
-    if (msg.clock) {
-      this._theirClock = clockUnion(this._theirClock, msg.docId, fromJS(msg.clock))
-    }
-    if (msg.changes) {
-      return this._docSet.applyChanges(msg.docId, fromJS(msg.changes))
-    }
+  // Send changes if we have more recent information than they do
+  _maybeSendChanges(docId) {
+    const theirClock = this._getClock(docId, theirs)
+    if (!theirClock) return
 
-    if (this._docSet.getDoc(msg.docId)) {
-      this.maybeSendChanges(msg.docId)
-    } else if (!this._ourClock.has(msg.docId)) {
-      // If the remote node has data that we don't, immediately ask for it.
-      // TODO should we sometimes exercise restraint in what we ask for?
-      this.sendMsg(msg.docId, Map())
-    }
+    const ourState = this._getState(docId)
 
-    return this._docSet.getDoc(msg.docId)
+    // If we have changes they don't have, send them
+    const changes = Backend.getMissingChanges(ourState, theirClock)
+    if (changes.length > 0) this._sendChanges(docId, changes)
+  }
+
+  _sendChanges(docId, changes) {
+    const clock = this._getClockFromDoc(docId)
+    this._sendMsg({ docId, clock: clock.toJS(), changes })
+    this._updateClock(ours, docId)
+  }
+
+  // Request changes if we're out of date
+  _maybeRequestChanges(docId, clock = this._getClockFromDoc(docId)) {
+    const ourClock = this._getClock(docId, ours)
+    // If the document is newer than what we have, request changes
+    if (!lessOrEqual(clock, ourClock)) this._requestChanges(docId, clock)
+  }
+
+  // A message with no changes and a clock is a request for changes
+  _requestChanges(docId, clock = this._getClockFromDoc(docId)) {
+    this._sendMsg({ docId, clock: clock.toJS() })
+  }
+
+  // A message with a docId and an empty clock is an advertisement for the document
+  // (if we have it) or a request for the document (if we don't)
+  _advertise(docId) {
+    this._sendMsg({ docId, clock: {} })
+  }
+
+  // Updates the vector clock for `docId` in the given `clockMap` (mapping from docId to vector
+  // clock) by merging in the new vector clock `clock`, setting each node's sequence number has been
+  // set to the maximum for that node.
+  _updateClock(which, docId, clock = this._getClockFromDoc(docId)) {
+    const clockMap = this._clock[which]
+    const oldClock = clockMap.get(docId, new Map())
+    // Merge the clocks, keeping the maximum sequence number for each node
+    const largestWins = (x, y) => Math.max(x, y)
+    const newClock = oldClock.mergeWith(largestWins, clock)
+    // Update the clockMap
+    this._clock[which] = clockMap.set(docId, newClock)
+  }
+
+  _getState(docId) {
+    const doc = this._docSet.getDoc(docId)
+    if (doc) return Frontend.getBackendState(doc)
+  }
+
+  _getClock(docId, which) {
+    const initialClockValue =
+      which === ours
+        ? new Map() // our default clock value is an empty clock
+        : undefined // their default clock value is undefined
+    return this._clock[which].get(docId, initialClockValue)
+  }
+
+  _getClockFromDoc(docId) {
+    return this._getState(docId).getIn(['opSet', 'clock'])
   }
 }
+
+const ERR_OLDCLOCK = 'Cannot pass an old state object to a connection'
+const ERR_NOCLOCK =
+  'This object cannot be used for network sync. ' +
+  'Are you trying to sync a snapshot from the history?'
+
+const ours = 'ours'
+const theirs = 'theirs'
 
 module.exports = Connection
