@@ -59,7 +59,7 @@ class Connection {
     else this._advertise(docId)
 
     // Return the current state of the document
-    return this._getState(docId)
+    return this._docSet.getDoc(docId)
   }
 
   // Private methods
