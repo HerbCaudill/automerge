@@ -20,36 +20,29 @@ declare module 'automerge' {
   function clone<T>(doc: Doc<T>, options?: InitOptions<T>): Doc<T>
   function free<T>(doc: Doc<T>): void
 
-  type InitOptions<T> =
-    | string // = actorId
-    | { 
-      actorId?: string
-      deferActorId?: boolean
-      freeze?: boolean
-      patchCallback?: PatchCallback<T>
-      observable?: Observable
-    }
-
-  type ChangeOptions<T> =
-    | string // = message
-    | {
-      message?: string
-      time?: number
-      patchCallback?: PatchCallback<T>
-    }
-
-  type PatchCallback<T> = (patch: Patch, before: T, after: T, local: boolean, changes: BinaryChange[]) => void
-  type ObserverCallback<T> = (diff: MapDiff | ListDiff | ValueDiff, before: T, after: T, local: boolean, changes: BinaryChange[]) => void
-
-  class Observable {
-    observe<T>(object: T, callback: ObserverCallback<T>): void
-  }
-
   function merge<T>(localdoc: Doc<T>, remotedoc: Doc<T>): Doc<T>
 
+  /**
+   * Changes a document `doc` according to actions taken by the local user. The actual change is made
+   * within the callback function `callback`, which is passed a mutable version of the document.
+   *
+   * @param doc the Automerge document to modify
+   * @param options if a string is passed, it is treated as `message`
+   * @param callback the change function
+   */
   function change<D, T = Proxy<D>>(doc: D, options: ChangeOptions<T>, callback: ChangeFn<T>): D
   function change<D, T = Proxy<D>>(doc: D, callback: ChangeFn<T>): D
+
+  /**
+   * Triggers a new change request on the document `doc` without actually modifying its data. Can be
+   * useful for acknowledging the receipt of some message (as it's incorported into the `deps` field
+   * of the change).
+   * @param {*} doc the Automerge document
+   * @param {string|object} options same as `change` options
+   * @returns the original document
+   */
   function emptyChange<D extends Doc<any>>(doc: D, options?: ChangeOptions<D>): D
+
   function applyChanges<T>(doc: Doc<T>, changes: BinaryChange[]): [Doc<T>, Patch]
   function equals<T>(val1: T, val2: T): boolean
   function encodeChange(change: Change): BinaryChange
