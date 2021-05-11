@@ -102,16 +102,17 @@ function makeChange(doc, context, options) {
     const [backendState, patch, binaryChange] = doc[OPTIONS].backend.applyLocalChange(state.backendState, change)
     state.backendState = backendState
     state.lastLocalChange = binaryChange
+
     // NOTE: When performing a local change, the patch is effectively applied twice -- once by the
     // context invoking interpretPatch as soon as any change is made, and the second time here
     // (after a round-trip through the backend). This is perhaps more robust, as changes only take
     // effect in the form processed by the backend, but the downside is a performance cost.
     // Should we change this?
+
     const newDoc = applyPatchToDoc(doc, patch, state, true)
     const patchCallback = options && options.patchCallback || doc[OPTIONS].patchCallback
     if (patchCallback) patchCallback(patch, doc, newDoc, true, [binaryChange])
     return [newDoc, change]
-
   } else {
     const queuedRequest = {actor, seq: change.seq, before: doc}
     state.requests = state.requests.concat([queuedRequest])
