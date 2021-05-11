@@ -65,10 +65,6 @@ declare module 'automerge' {
 
   // custom CRDT types
 
-  class TableRow {
-    readonly id: UUID
-  }
-
   class Table<T> {
     constructor()
     add(item: T): UUID
@@ -77,6 +73,10 @@ declare module 'automerge' {
     ids: UUID[]
     remove(id: UUID): void
     rows: (T & TableRow)[]
+  }
+
+  class TableRow {
+    readonly id: UUID
   }
 
   class List<T> extends Array<T> {
