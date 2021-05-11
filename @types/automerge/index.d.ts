@@ -90,12 +90,23 @@ declare module 'automerge' {
     toSpans<T>(): (string | T)[]
   }
 
-  // Note that until https://github.com/Microsoft/TypeScript/issues/2361 is addressed, we
-  // can't treat a Counter like a literal number without force-casting it as a number.
-  // This won't compile:
-  //   `assert.strictEqual(c + 10, 13) // Operator '+' cannot be applied to types 'Counter' and '10'.ts(2365)`
-  // But this will:
-  //   `assert.strictEqual(c as unknown as number + 10, 13)`
+  /**
+   Note: until https://github.com/Microsoft/TypeScript/issues/2361 is addressed, we
+   can't treat a Counter like a literal number without force-casting it as a number.
+   This won't compile:
+   ```
+   assert.strictEqual(c + 10, 13) // ❌
+   // Error: Operator '+' cannot be applied to types 'Counter' and '10'.ts(2365)
+   ```
+   But this will:
+   ```
+   assert.strictEqual(c as unknown as number + 10, 13) // ✅
+   ```
+   */
+
+  /**
+   *
+   */
   class Counter extends Number {
     constructor(value?: number)
     increment(delta?: number): void
