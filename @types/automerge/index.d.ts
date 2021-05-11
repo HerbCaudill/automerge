@@ -1,22 +1,10 @@
 declare module 'automerge' {
-  /**
-   * The return type of `Automerge.init<T>()`, `Automerge.change<T>()`, etc. where `T` is the
-   * original type. It is a recursively frozen version of the original type.
-   */
-  type Doc<T> = FreezeObject<T>
+  // Public API (Automerge.*)
 
-  /**
-   * The argument pased to the callback of a `change` function is a mutable proxy of the original
-   * type. `Proxy<D>` is the inverse of `Doc<T>`: `Proxy<Doc<T>>` is `T`, and `Doc<Proxy<D>>` is `D`.
-   */
-  type Proxy<D> = D extends Doc<infer T> ? T : never
-
-  type ChangeFn<T> = (doc: T) => void
-
-  // Automerge.* functions
-
+  
   function init<T>(options?: InitOptions<T>): Doc<T>
   function from<T>(initialState: T | Doc<T>, options?: InitOptions<T>): Doc<T>
+
   function clone<T>(doc: Doc<T>, options?: InitOptions<T>): Doc<T>
   function free<T>(doc: Doc<T>): void
 
@@ -165,7 +153,68 @@ declare module 'automerge' {
     function decodeSyncState(bytes: BinarySyncState): SyncState
   }
 
-  // Internals
+  // Types
+
+  /**
+   * The return type of `Automerge.init<T>()`, `Automerge.change<T>()`, etc. where `T` is the
+   * original type. It is a recursively frozen version of the original type.
+   */
+  type Doc<T> = FreezeObject<T>
+
+  /**
+   * The argument pased to the callback of a `change` function is a mutable proxy of the original
+   * type. `Proxy<D>` is the inverse of `Doc<T>`: `Proxy<Doc<T>>` is `T`, and `Doc<Proxy<D>>` is `D`.
+   */
+  type Proxy<D> = D extends Doc<infer T> ? T : never
+
+  /**
+   * A change function is a callback that receives a mutable version of an Automerge document. Any
+   * changes made to this mutable version are made on the actual document.
+   */
+  type ChangeFn<T> = (doc: T) => void
+
+  type InitOptions<T> =
+    | string // = actorId
+    | {
+        actorId?: string
+        deferActorId?: boolean
+        freeze?: boolean
+        observable?: Observable
+        patchCallback?: PatchCallback<T>
+      }
+
+  type ChangeOptions<T> =
+    | string // = message
+    | {
+        /** an optional descriptive string that is attached to the change (analogous to a git commit message) */
+        message?: string
+
+        // Q: is this a unix timestamp?
+        time?: number
+
+        /** a callback to be executed when the change is complete */
+        patchCallback?: PatchCallback<T>
+      }
+
+  type PatchCallback<T> = (
+    patch: Patch,
+    before: T,
+    after: T,
+    local: boolean,
+    changes: BinaryChange[]
+  ) => void
+
+  type ObserverCallback<T> = (
+    diff: MapDiff | ListDiff | ValueDiff,
+    before: T,
+    after: T,
+    local: boolean,
+    changes: BinaryChange[]
+  ) => void
+
+  class Observable {
+    observe<T>(object: T, callback: ObserverCallback<T>): void
+  }
 
   type Hash = string // 64-digit hex string
   type OpId = string // of the form `${counter}@${actorId}`
