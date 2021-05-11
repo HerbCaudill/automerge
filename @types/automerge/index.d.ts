@@ -1,8 +1,33 @@
 declare module 'automerge' {
   // Public API (Automerge.*)
 
-  
+  /**
+   * Creates an empty document object with no changes.
+   *
+   * @param {string|object} [options] if a string is passed, it is treated as `actorId`
+   *
+   * @returns an empty Automerge document
+   *
+   * @example const doc = Automerge.init()
+   * @example const doc = Automerge.init('1234')
+   * @example const doc = Automerge.init({actorId: '1234'})
+   * @example const doc = Automerge.init({freeze: true})
+   */
   function init<T>(options?: InitOptions<T>): Doc<T>
+
+  /**
+   * Returns a new document object initialized with the given state.
+   *
+   * @param initialState an object with the initial state for the document
+   * @param [options] takes the same options as `Automerge.init`
+   *
+   * @returns the new Automerge document
+   *
+   * @example const doc = Automerge.from({ todos: [] })
+   * @example const doc = Automerge.from({ todos: [] }, '1234')
+   * @example const doc = Automerge.from({ todos: [] }, { actorId: '1234' })
+   * @example const doc = Automerge.from({ todos: [] }, { freeze: true })
+   */
   function from<T>(initialState: T | Doc<T>, options?: InitOptions<T>): Doc<T>
 
   function clone<T>(doc: Doc<T>, options?: InitOptions<T>): Doc<T>
