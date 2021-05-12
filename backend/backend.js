@@ -136,7 +136,7 @@ function applyLocalChange(backend, change) {
   // changes in sequence before getting a response from the backend; since the binary
   // encoding and hashing is done by the backend, the frontend does not know the hash
   // of its own last change in this case. Rather than handle this situation as a
-  // special case, we say that the frontend includes only specifies other actors'
+  // special case, we say that the frontend only specifies other actors'
   // deps in changes it generates, and the dependency from the local actor's last
   // change is always added here in the backend.
   //
