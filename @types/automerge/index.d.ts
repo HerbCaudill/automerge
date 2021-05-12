@@ -42,6 +42,11 @@ declare module 'automerge' {
    * @param doc the Automerge document to modify
    * @param options if a string is passed, it is treated as `message`
    * @param callback the change function
+   *
+   * @example
+   * const v1 = Automerge.init()
+   * const v2 = Automerge.change(v1, doc => doc.todos = [])
+   * const v3 = Automerge.change(v2, doc => doc.todos.push('feed the hamsters'))
    */
   function change<D, T = Proxy<D>>(doc: D, options: ChangeOptions<T>, callback: ChangeFn<T>): D
   function change<D, T = Proxy<D>>(doc: D, callback: ChangeFn<T>): D
