@@ -67,38 +67,52 @@ function updateRootObject(doc, updated, state) {
 }
 
 /**
- * Adds a new change request to the list of pending requests, and returns an
- * updated document root object.
- * The details of the change are taken from the context object `context`.
- * `options` contains properties that may affect how the change is processed; in
- * particular, the `message` property of `options` is an optional human-readable
- * string describing the change.
+ * Adds a new change request to the list of pending requests
+ * 
+ * @param doc the doc being updated
+ * @param context `Context` object containing the details of the change
+ * @param options `ChangeOptions` object that might contain a human-readable "commit message"
+ * @returns an updated document root object
  */
 function makeChange(doc, context, options) {
   const actor = getActorId(doc)
   if (!actor) {
     throw new Error('Actor ID must be initialized with setActorId() before making a change')
   }
+
   const state = copyObject(doc[STATE])
   state.seq += 1
 
   const change = {
+    // vector clock
     actor,
     seq: state.seq,
+    
+    // index of the first op 
     startOp: state.maxOp + 1,
+
+    // hash(es) of the preceding change(s)
     deps: state.deps,
+
+    // unix timestamp to nearest second
     time:
       options && typeof options.time === 'number'
         ? options.time
         : Math.round(new Date().getTime() / 1000),
+
+    // commit message
     message:
       options && typeof options.message === 'string' 
         ? options.message
         : '',
+
+    // the set of operations accumulated on the context object
     ops: context.ops,
   }
 
   if (doc[OPTIONS].backend) {
+    // integrated backend
+
     const [backendState, patch, binaryChange] = doc[OPTIONS].backend.applyLocalChange(state.backendState, change)
     state.backendState = backendState
     state.lastLocalChange = binaryChange
@@ -110,15 +124,26 @@ function makeChange(doc, context, options) {
     // Should we change this?
 
     const newDoc = applyPatchToDoc(doc, patch, state, true)
+
+    // fire callback for this patch (if we have observers) 
     const patchCallback = options && options.patchCallback || doc[OPTIONS].patchCallback
     if (patchCallback) patchCallback(patch, doc, newDoc, true, [binaryChange])
+    
     return [newDoc, change]
   } else {
+    // remote backend (e.g. running on another process)
+    // frontend / backend communication handled by application
+
+
     const queuedRequest = {actor, seq: change.seq, before: doc}
     state.requests = state.requests.concat([queuedRequest])
     state.maxOp = state.maxOp + countOps(change.ops)
     state.deps = []
-    return [updateRootObject(doc, context ? context.updated : {}, state), change]
+
+    const updated = context ? context.updated : {}
+    const newDoc = updateRootObject(doc, updated, state)
+    
+    return [newDoc, change]
   }
 }
 
