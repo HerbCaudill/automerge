@@ -147,6 +147,9 @@ function makeChange(doc, context, options) {
   }
 }
 
+/**
+ * Some ops are actually sets of ops. This provides the true count of individual ops.
+ */
 function countOps(ops) {
   let count = 0
   for (const op of ops) {
