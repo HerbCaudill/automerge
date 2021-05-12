@@ -119,7 +119,7 @@ function applyChanges(backend, changes) {
 }
 
 /**
- * Takes a single change request `request` made by the local user, and applies
+ * Takes a single `change` made by the local user, and applies
  * it to the node state `backend`. Returns a three-element array `[backend, patch, binaryChange]`
  * where `backend` is the updated node state,`patch` confirms the
  * modifications to the document objects, and `binaryChange` is a binary-encoded form of
