@@ -66,13 +66,17 @@ declare module 'automerge' {
   function encodeChange(change: Change): BinaryChange
   function decodeChange(binaryChange: BinaryChange): Change
 
+  // exposed directly from Frontend:
   function getActorId<T>(doc: Doc<T>): string
-  function getAllChanges<T>(doc: Doc<T>): BinaryChange[]
-  function getChanges<T>(olddoc: Doc<T>, newdoc: Doc<T>): BinaryChange[]
   function getConflicts<T>(doc: Doc<T>, key: keyof T): any
-  function getHistory<D, T = Proxy<D>>(doc: Doc<T>): State<T>[]
+  function getLastLocalChange<T>(doc: Doc<T>): BinaryDocument
   function getObjectById<T>(doc: Doc<T>, objectId: OpId): any
   function getObjectId(object: any): OpId
+  function setActorId<T>(doc: Doc<T>, actorId: string): Doc<T>
+
+  function getAllChanges<T>(doc: Doc<T>): BinaryChange[]
+  function getChanges<T>(olddoc: Doc<T>, newdoc: Doc<T>): BinaryChange[]
+  function getHistory<D, T = Proxy<D>>(doc: Doc<T>): State<T>[]
 
   function load<T>(data: BinaryDocument, options?: any): Doc<T>
   function save<T>(doc: Doc<T>): BinaryDocument
