@@ -268,13 +268,7 @@ declare module 'automerge' {
         patchCallback?: PatchCallback<T>
       }
 
-  type PatchCallback<T> = (
-    patch: Patch,
-    before: T,
-    after: T,
-    local: boolean,
-    changes: BinaryChange[]
-  ) => void
+  type PatchCallback<T> = (patch: Patch, before: T, after: T, local: boolean, changes: BinaryChange[]) => void
 
   type ObserverCallback<T> = (
     diff: MapDiff | ListDiff | ValueDiff,
