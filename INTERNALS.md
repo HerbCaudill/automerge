@@ -290,7 +290,11 @@ currently uses the following types of operation:
 For example, the following code:
 
 ```js
-Automerge.change(Automerge.init(), 'Create document', doc => doc.cards = [ { title: 'hello world' } ])
+const doc = Automerge.change(
+  Automerge.init(), 
+  'Create document', 
+  s => s.cards = [ { title: 'hello world' } ]
+)
 ```
 
 generates the following JSON object describing the change:
