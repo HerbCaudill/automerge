@@ -392,29 +392,43 @@ function applyOps(opSet, change, patch) {
  * the changes. Returns the updated `opSet`.
  */
 function applyChange(opSet, binaryChange, patch) {
+
   const change = fromJS(decodeChange(binaryChange))
+
   const actor = change.get('actor'), seq = change.get('seq'), startOp = change.get('startOp'), hash = change.get('hash')
+  
+  // check change metadata for completeness 
   if (typeof actor !== 'string' || typeof seq !== 'number' || typeof startOp !== 'number') {
     throw new TypeError(`Missing change metadata: actor = ${actor}, seq = ${seq}, startOp = ${startOp}`)
   }
-  if (opSet.hasIn(['hashes', hash])) return opSet // change already applied, return unchanged
 
+  // if this change was already applied, return unchanged
+  if (opSet.hasIn(['hashes', hash])) return opSet 
+
+  // make sure we don't skip or reuse sequence numbers
   const expectedSeq = opSet.getIn(['states', actor], List()).size + 1
   if (seq !== expectedSeq) {
     throw new RangeError(`Expected change ${expectedSeq} by ${actor}, got change ${seq}`)
   }
 
+  // add each new change's hash to all of the changes it depends on, as a future dependency
   let maxOpId = 0
   for (let depHash of change.get('deps')) {
+
     const depOpId = opSet.getIn(['hashes', depHash, 'maxOpId'])
     if (depOpId === undefined) throw new RangeError(`Unknown dependency hash ${depHash}`)
     maxOpId = Math.max(maxOpId, depOpId)
+
+    // opSet.hashes[depHash].depsFuture.add(hash)
     opSet = opSet.updateIn(['hashes', depHash, 'depsFuture'], Set(), future => future.add(hash))
   }
+
+  // check the change's starting operation index for consistency
   if (startOp !== maxOpId + 1) {
     throw new RangeError(`Expected startOp to be ${maxOpId + 1}, was ${startOp}`)
   }
 
+  // make sure we have a dependency on the previous change by this actor
   let queue = change.get('deps'), sameActorDep = (seq === 1)
   while (!sameActorDep && !queue.isEmpty()) {
     const dep = opSet.getIn(['hashes', queue.first()])
