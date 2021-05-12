@@ -22,9 +22,6 @@ function init(options) {
   return Frontend.init(Object.assign({backend}, options))
 }
 
-/**
- * Returns a new document object initialized with the given state.
- */
 function from(initialState, options) {
   const changeOpts = {message: 'Initialization'}
   return change(init(options), changeOpts, doc => Object.assign(doc, initialState))
@@ -160,3 +157,5 @@ for (let name of ['getObjectId', 'getObjectById', 'getActorId',
      'Text', 'Table', 'Counter', 'Observable']) {
   module.exports[name] = Frontend[name]
 }
+
+
