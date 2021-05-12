@@ -420,8 +420,8 @@ function advanceHeads(myOldHeads, myNewHeads, ourOldSharedHeads) {
 
 
 /**
- * Given a backend, a message message and the state of our peer, apply any changes, update what
- * we believe about the peer, and (if there were applied changes) produce a patch for the frontend
+ * Given a backend, a sync message and the state of our peer, apply any changes, update what we
+ * believe about the peer, and (if there were applied changes) produce a patch for the frontend
  */
 function receiveSyncMessage(backend, oldSyncState, binaryMessage) {
   if (!backend) {
