@@ -316,7 +316,11 @@ function emptyChange(doc, options) {
   if (!actorId) {
     throw new Error('Actor ID must be initialized with setActorId() before making a change')
   }
-  return makeChange(doc, new Context(doc, actorId), options)
+
+  // since there's no change function to run, this context object won't contain any ops 
+  const context = new Context(doc, actorId)
+
+  return makeChange(doc, context, options)
 }
 
 /**
