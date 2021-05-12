@@ -186,8 +186,8 @@ declare module 'automerge' {
 
   namespace Frontend {
     function applyPatch<T>(doc: Doc<T>, patch: Patch, backendState?: BackendState): Doc<T>
-    function change<D, T = Proxy<D>>(doc: D, message: string | undefined, callback: ChangeFn<T>): [D, Change]
     function change<D, T = Proxy<D>>(doc: D, callback: ChangeFn<T>): [D, Change]
+    function change<D, T = Proxy<D>>(doc: D, message: string | undefined, callback: ChangeFn<T>): [D, Change]
     function emptyChange<T>(doc: Doc<T>, message?: string): [Doc<T>, Change]
     function from<T>(initialState: T | Doc<T>, options?: InitOptions<T>): [Doc<T>, Change]
     function getActorId<T>(doc: Doc<T>): string
@@ -217,7 +217,7 @@ declare module 'automerge' {
     function loadChanges(state: BackendState, changes: BinaryChange[]): BackendState
     function save(state: BackendState): BinaryDocument
     function generateSyncMessage(state: BackendState, syncState: SyncState): [SyncState, BinarySyncMessage?]
-    function receiveSyncMessage(state: BackendState, syncState: SyncState, message: BinarySyncMessage): [BackendState, SyncState, Patch?]
+    function receiveSyncMessage( state: BackendState, syncState: SyncState, message: BinarySyncMessage ): [BackendState, SyncState, Patch?]
     function encodeSyncMessage(message: SyncMessage): BinarySyncMessage
     function decodeSyncMessage(bytes: BinarySyncMessage): SyncMessage
     function initSyncState(): SyncState
@@ -285,6 +285,8 @@ declare module 'automerge' {
   type Hash = string // 64-digit hex string
   type OpId = string // of the form `${counter}@${actorId}`
 
+  type PrimitiveValue = number | boolean | string | null
+
   type UUID = string
   type UUIDGenerator = () => UUID
   interface UUIDFactory extends UUIDGenerator {
@@ -342,10 +344,10 @@ declare module 'automerge' {
     key: string | number
     insert: boolean
     child?: OpId
-    value?: number | boolean | string | null
+    value?: PrimitiveValue
     datatype?: DataType
     pred?: OpId[]
-    values?: (number | boolean | string | null)[]
+    values?: PrimitiveValue[]
     multiOp?: number
   }
 
@@ -358,95 +360,142 @@ declare module 'automerge' {
     diffs: MapDiff
   }
 
-  // Describes changes to a map (in which case propName represents a key in the
-  // map) or a table object (in which case propName is the primary key of a row).
+  /**
+   * Describes changes to a map (in which case propName represents a key in the map) or a table
+   * object (in which case propName is the primary key of a row).
+   */
   interface MapDiff {
-    objectId: OpId        // ID of object being updated
-    type: 'map' | 'table' // type of object being updated
-    // For each key/property that is changing, props contains one entry
-    // (properties that are not changing are not listed). The nested object is
-    // empty if the property is being deleted, contains one opId if it is set to
-    // a single value, and contains multiple opIds if there is a conflict.
-    props: {[propName: string]: {[opId: string]: MapDiff | ListDiff | ValueDiff }}
+    /** ID of object being updated */
+    objectId: OpId
+
+    /** type of object being updated */
+    type: 'map' | 'table'
+
+    /**
+     * For each key/property that is changing, props contains one entry.
+     *
+     * - properties that are not changing are not listed
+     * - if the property is being deleted, the nested object is empty
+     * - if the property is set to a single value, the nested object contains one opId
+     * - if there is a conflict, the nested object contains multiple opIds
+     */
+    props: {
+      /** propName is the name of the property that is changing */
+      [propName: string]: {
+        [opId: string]: MapDiff | ListDiff | ValueDiff
+      }
+    }
   }
 
-  // Describes changes to a list or Automerge.Text object, in which each element
-  // is identified by its index.
+  /**
+   * Describes changes to a list or Automerge.Text object, in which each element
+   * is identified by its index.
+   */
   interface ListDiff {
-    objectId: OpId        // ID of object being updated
-    type: 'list' | 'text' // type of objct being updated
-    // This array contains edits in the order they should be applied.
-    edits: (SingleInsertEdit | MultiInsertEdit | UpdateEdit | RemoveEdit)[]
+    /** ID of object being updated */
+    objectId: OpId
+
+    /** type of objct being updated */
+    type: 'list' | 'text'
+
+    /** This array contains edits in the order they should be applied. */
+    edits: ListEdit[]
   }
 
-  // Describes the insertion of a single element into a list or text object.
-  // The element can be a nested object.
-  interface SingleInsertEdit {
-    action: 'insert'
-    index: number   // the list index at which to insert the new element
-    elemId: OpId    // the unique element ID of the new list element
-    opId: OpId      // ID of the operation that assigned this value
-    value: MapDiff | ListDiff | ValueDiff
-  }
-
-  // Describes the insertion of a consecutive sequence of primitive values into
-  // a list or text object. In the case of text, the values are strings (each
-  // character as a separate string value). Each inserted value is given a
-  // consecutive element ID: starting with `elemId` for the first value, the
-  // subsequent values are given elemIds with the same actor ID and incrementing
-  // counters. To insert non-primitive values, use SingleInsertEdit.
-  interface MultiInsertEdit {
-    action: 'multi-insert'
-    index: number   // the list index at which to insert the first value
-    elemId: OpId    // the unique ID of the first inserted element
-    values: (number | boolean | string | null)[] // list of values to insert
-  }
-
-  // Describes the update of the value or nested object at a particular index
-  // of a list or text object. In the case where there are multiple conflicted
-  // values at the same list index, multiple UpdateEdits with the same index
-  // (but different opIds) appear in the edits array of ListDiff.
-  interface UpdateEdit {
-    action: 'update'
-    index: number   // the list index to update
-    opId: OpId      // ID of the operation that assigned this value
-    value: MapDiff | ListDiff | ValueDiff
-  }
-
-  // Describes the deletion of one or more consecutive elements from a list or
-  // text object.
-  interface RemoveEdit {
-    action: 'remove'
-    index: number   // index of the first list element to remove
-    count: number   // number of list elements to remove
-  }
-
-  // Describes a primitive value, optionally tagged with a datatype that
-  // indicates how the value should be interpreted.
+  /**
+   * Describes a primitive value, optionally tagged with a datatype that
+   * indicates how the value should be interpreted.
+   */
   interface ValueDiff {
     type: 'value'
-    value: number | boolean | string | null
+    value: PrimitiveValue
     datatype?: DataType
   }
 
-  type OpAction =
-    | 'del'
-    | 'inc'
-    | 'set'
-    | 'link'
-    | 'makeText'
-    | 'makeTable'
-    | 'makeList'
-    | 'makeMap'
+  /**
+   * Describes the insertion of a single element into a list or text object.
+   * The element can be a nested object.
+   */
+  interface SingleInsertEdit {
+    action: 'insert'
+
+    /** the list index at which to insert the new element */
+    index: number
+
+    /** the unique element ID of the new list element */
+    elemId: OpId
+
+    /** ID of the operation that assigned this value */
+    opId: OpId
+
+    value: MapDiff | ListDiff | ValueDiff
+  }
+
+  /**
+   * Describes the insertion of a consecutive sequence of primitive values into
+   * a list or text object. In the case of text, the values are strings (each
+   * character as a separate string value). Each inserted value is given a
+   * consecutive element ID: starting with `elemId` for the first value, the
+   * subsequent values are given elemIds with the same actor ID and incrementing
+   * counters. To insert non-primitive values, use SingleInsertEdit.
+   */
+  interface MultiInsertEdit {
+    action: 'multi-insert'
+
+    /** the list index at which to insert the first value */
+    index: number
+
+    /** the unique ID of the first inserted element */
+    elemId: OpId
+
+    /** list of values to insert */
+    values: PrimitiveValue[]
+  }
+
+  /**
+   * Describes the update of the value or nested object at a particular index
+   * of a list or text object. In the case where there are multiple conflicted
+   * values at the same list index, multiple UpdateEdits with the same index
+   * (but different opIds) appear in the edits array of ListDiff.
+   */
+  interface UpdateEdit {
+    action: 'update'
+
+    /** the list index to update */
+    index: number
+
+    /** ID of the operation that assigned this value */
+    opId: OpId
+
+    value: MapDiff | ListDiff | ValueDiff
+  }
+
+  /**
+   * Describes the deletion of one or more consecutive elements from a list or
+   * text object.
+   */
+  interface RemoveEdit {
+    action: 'remove'
+
+    /** index of the first list element to remove */
+    index: number
+
+    /** number of list elements to remove */
+    count: number
+  }
+
+  type ListEdit = SingleInsertEdit | MultiInsertEdit | UpdateEdit | RemoveEdit
+
+  type OpAction = 'del' | 'inc' | 'set' | 'link' | 'makeText' | 'makeTable' | 'makeList' | 'makeMap'
 
   type CollectionType =
-    | 'list' //..
+    | 'list' //
     | 'map'
     | 'table'
     | 'text'
 
   type DataType =
-    | 'counter' //..
+    | 'counter' //
     | 'timestamp'
 
   // TYPE UTILITY FUNCTIONS
