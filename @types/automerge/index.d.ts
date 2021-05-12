@@ -81,8 +81,49 @@ declare module 'automerge' {
   function load<T>(data: BinaryDocument, options?: any): Doc<T>
   function save<T>(doc: Doc<T>): BinaryDocument
 
-  function generateSyncMessage<T>(doc: Doc<T>, syncState: SyncState): [SyncState, BinarySyncMessage?]
-  function receiveSyncMessage<T>(doc: Doc<T>, syncState: SyncState, message: BinarySyncMessage): [Doc<T>, SyncState, Patch?]
+  /**
+   * Given a backend and what we believe to be the state of our peer, generate a message which tells
+   * them about we have and includes any changes we believe they need
+   */
+  function generateSyncMessage<T>(
+    /** our latest version of the doc */
+    doc: Doc<T>,
+
+    /** our sync state for this peer */
+    syncState: SyncState
+  ): [
+    /** updated sync state for this peer */
+    SyncState,
+
+    /** sync message to send to the peer (or `null` if there are no changes) */
+    BinarySyncMessage | null
+  ]
+
+  /**
+   * Given a backend, a sync message and the state of our peer, apply any changes, update what
+   * we believe about the peer, and (if there were applied changes) produce a patch for the frontend
+   */
+  function receiveSyncMessage<T>(
+    /** our latest version of the doc */
+    doc: Doc<T>,
+
+    /** our sync state for this peer */
+    syncState: SyncState,
+
+    /** the sync message we received from the peer */
+    message: BinarySyncMessage
+  ): [
+    /** the updated document */
+    Doc<T>,
+
+    /** updated sync state for this peer */
+    SyncState,
+
+    /* if changes were applied, a patch for the frontend; otherwise `null`  */
+    Patch | null
+  ]
+
+  /** Creates an empty SyncState object. */
   function initSyncState(): SyncState
 
   // custom CRDT types
