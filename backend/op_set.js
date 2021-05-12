@@ -21,9 +21,15 @@ function causallyReady(opSet, change) {
 function getPath(opSet, objectId) {
   let path = []
   while (objectId !== '_root') {
+    // look up the operation that created the object with the current objectId
     const ref = opSet.getIn(['byObject', objectId, '_inbound'], Set()).first()
-    if (!ref) return null
+    
+    if (!ref) return null // e.g. object no longer exists
+
+    // add the operation to the beginning 
     path.unshift(ref)
+
+    // keep going with this operation until we get to the root
     objectId = ref.get('obj')
   }
   return path
