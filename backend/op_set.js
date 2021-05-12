@@ -452,12 +452,28 @@ function applyChange(opSet, binaryChange, patch) {
   })
 
   opSet = applyOps(opSet, change, patch)
+
+  // update the backend state
   return opSet
+    // add this change to a map that allows us to look it up easily by hasn
     .setIn(['hashes', hash], changeInfo)
+    
+    // add this hash to a list of changes for this actor
     .updateIn(['states', actor], List(), prior => prior.push(hash))
-    .update('deps', deps => deps.subtract(change.get('deps')).add(hash))
+
+    // update heads
+    .update('deps', deps => {
+      const transitiveDeps = change.get('deps')
+      return deps
+        .subtract(transitiveDeps) // remove any transitive dependencies 
+        .add(hash); // add this hash
+    })
+    
+    // update the maximum operation ID
     .update('maxOp', maxOp => Math.max(maxOp, changeInfo.get('maxOpId')))
-    .update('history', history => history.push(hash))
+
+    // add this hash to our history
+    .update('history', history => history.push(hash));
 }
 
 function applyQueuedOps(opSet, patch) {
