@@ -137,6 +137,7 @@ declare module 'automerge' {
     remove(id: UUID): void
     rows: (T & TableRow)[]
   }
+  type ReadonlyTable<T> = ReadonlyArray<T> & Table<T>
 
   class TableRow {
     readonly id: UUID
@@ -146,12 +147,14 @@ declare module 'automerge' {
     insertAt?(index: number, ...args: T[]): List<T>
     deleteAt?(index: number, numDelete?: number): List<T>
   }
+  type ReadonlyList<T> = ReadonlyArray<T> & List<T>
 
   class Text extends List<string> {
     constructor(text?: string | string[])
     get(index: number): string
     toSpans<T>(): (string | T)[]
   }
+  type ReadonlyText = ReadonlyList<string> & Text
 
   /**
    Note: until https://github.com/Microsoft/TypeScript/issues/2361 is addressed, we
@@ -178,12 +181,6 @@ declare module 'automerge' {
     valueOf(): number
     value: number
   }
-
-  // Readonly variants
-
-  type ReadonlyTable<T> = ReadonlyArray<T> & Table<T>
-  type ReadonlyList<T> = ReadonlyArray<T> & List<T>
-  type ReadonlyText = ReadonlyList<string> & Text
 
   // Front & back
 
