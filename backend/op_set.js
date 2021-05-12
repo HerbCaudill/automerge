@@ -356,17 +356,25 @@ function finalizePatch(diff) {
 function applyOps(opSet, change, patch) {
   const actor = change.get('actor'), startOp = change.get('startOp')
   let newObjects = Set()
+
   change.get('ops').forEach((op, index) => {
-    const action = op.get('action'), obj = op.get('obj'), insert = op.get('insert')
+    const action = op.get('action') // action label (set, del, etc.)
+    const obj = op.get('obj') // object id being operated on
+    const insert = op.get('insert') // boolean - are we inserting a list element?
+
+    // check for known action types
     if (!['set', 'del', 'inc', 'link', 'makeMap', 'makeList', 'makeText', 'makeTable'].includes(action)) {
       throw new RangeError(`Unknown operation action: ${action}`)
     }
+
+    // pred is required
     if (!op.get('pred')) {
       throw new RangeError(`Missing 'pred' field in operation ${op}`)
     }
 
     let localPatch
     if (patch) {
+      // get the path from the _root to a nested object
       const path = getPath(opSet, obj)
       if (path !== null) {
         localPatch = patch
