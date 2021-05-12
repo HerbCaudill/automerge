@@ -74,13 +74,19 @@ function makePatch(state, diffs, request, isIncremental) {
  * `loadChanges()`.
  */
 function apply(state, changes, request, isIncremental) {
+
+  // isIncremental=false indicates that we're making changes in bulk (e.g. via Automerge.load())
+  // isIncremental=true is the case when applying individual changes from the application or from a peer
+
   let diffs = isIncremental ? {objectId: '_root', type: 'map', props: {}} : null
   let opSet = state.get('opSet')
   for (let change of changes) {
     for (let chunk of splitContainers(change)) {
       if (request) {
+        // this is a new change by the application
         opSet = OpSet.addLocalChange(opSet, chunk, diffs)
       } else {
+        // this is an existing change coming from storage or from a peer
         opSet = OpSet.addChange(opSet, chunk, diffs)
       }
     }
