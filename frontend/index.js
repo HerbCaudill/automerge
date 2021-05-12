@@ -255,14 +255,17 @@ function from(initialState, options) {
  * changed, returns the original `doc` and a `null` change request.
  */
 function change(doc, options, callback) {
+  // support `change(doc, callback)` signature
+  if (typeof options === 'function' && callback === undefined) {
+    [options, callback] = [callback, options]
+  }
+
+  // make sure we've been given a valid Automerge document
   if (doc[OBJECT_ID] !== '_root') {
     throw new TypeError('The first argument to Automerge.change must be the document root')
   }
   if (doc[CHANGE]) {
     throw new TypeError('Calls to Automerge.change cannot be nested')
-  }
-  if (typeof options === 'function' && callback === undefined) {
-    [options, callback] = [callback, options]
   }
   if (typeof options === 'string') {
     options = {message: options}
@@ -275,13 +278,20 @@ function change(doc, options, callback) {
   if (!actorId) {
     throw new Error('Actor ID must be initialized with setActorId() before making a change')
   }
-  const context = new Context(doc, actorId)
-  callback(rootObjectProxy(context))
 
+  // the context object wraps the doc and will accumulate the ops implied by the change function
+  const context = new Context(doc, actorId)
+
+  // apply the change function to a proxy; this will cause context to create a set of ops
+  const proxy = rootObjectProxy(context)
+  callback(proxy)
+
+  // was a change actually made?
   if (Object.keys(context.updated).length === 0) {
-    // If the callback didn't change anything, return the original document object unchanged
+    // no - return the original document unchanged
     return [doc, null]
   } else {
+    // yes - apply the change
     return makeChange(doc, context, options)
   }
 }
