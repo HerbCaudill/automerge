@@ -309,6 +309,7 @@ function getChangesToSend(backend, have, need) {
   return changesToSend
 }
 
+/** Creates an empty SyncState object. */
 function initSyncState() {
   return {
     sharedHeads: [],
