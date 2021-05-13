@@ -1,7 +1,7 @@
 const path = require('path')
 
 module.exports = {
-  entry: './src/automerge.js',
+  entry: './src/automerge.ts',
   mode: 'development',
   output: {
     filename: 'automerge.js',
@@ -15,17 +15,10 @@ module.exports = {
   module: {
     rules: [
       {
-        test: /\.js$/,
+        test: /\.(js|ts)$/,
         exclude: /node_modules/,
-        use: {
-          loader: 'babel-loader',
-          options: {
-            presets: [
-              ['@babel/preset-env', { targets: 'defaults' }],
-            ]
-          }
-        }
-      }
-    ]
-  }
+        use: { loader: 'ts-loader' },
+      },
+    ],
+  },
 }
