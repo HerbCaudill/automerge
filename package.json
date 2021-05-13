@@ -9,7 +9,7 @@
     "coverage": "nyc --reporter=html --reporter=text mocha",
     "test": "mocha",
     "testwasm": "mocha --file test/wasm.js",
-    "build": "webpack && copyfiles --flat @types/automerge/index.d.ts dist",
+    "build": "webpack",
     "prepublishOnly": "npm run-script build",
     "lint": "eslint ."
   },
