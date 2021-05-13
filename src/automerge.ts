@@ -1,9 +1,13 @@
-const uuid = require('./uuid')
-const Frontend = require('../frontend')
-const { OPTIONS } = require('../frontend/constants')
-const { encodeChange, decodeChange } = require('../backend/columnar')
-const { isObject } = require('./common')
-let backend = require('../backend') // mutable: can be overridden with setDefaultBackend()
+import { Doc, InitOptions } from "./types"
+
+import uuid from './uuid'
+import Frontend from '../frontend'
+import { OPTIONS } from '../frontend/constants'
+import { encodeChange, decodeChange } from '../backend/columnar'
+import { isObject } from './common'
+import _backend from '../backend' 
+
+let backend = _backend // mutable: can be overridden with setDefaultBackend()
 
 /**
  * Automerge.* API
@@ -11,7 +15,7 @@ let backend = require('../backend') // mutable: can be overridden with setDefaul
  * the features of the Frontend (a document interface) and the backend (CRDT operations)
  */
 
-function init(options) {
+export function init<T>(options?: InitOptions<T>): Doc<T> {
   if (typeof options === 'string') {
     options = {actorId: options}
   } else if (typeof options === 'undefined') {
@@ -19,7 +23,7 @@ function init(options) {
   } else if (!isObject(options)) {
     throw new TypeError(`Unsupported options for init(): ${options}`)
   }
-  return Frontend.init(Object.assign({backend}, options))
+  return Frontend.init(Object.assign({backend}, options)) as Doc<T>
 }
 
 /**
@@ -147,16 +151,16 @@ function setDefaultBackend(newBackend) {
   backend = newBackend
 }
 
-module.exports = {
-  init, from, change, emptyChange, clone, free,
-  load, save, merge, getChanges, getAllChanges, applyChanges,
-  encodeChange, decodeChange, equals, getHistory, uuid,
-  Frontend, setDefaultBackend, generateSyncMessage, receiveSyncMessage, initSyncState,
-  get Backend() { return backend }
-}
+// module.exports = {
+//   from, change, emptyChange, clone, free,
+//   load, save, merge, getChanges, getAllChanges, applyChanges,
+//   encodeChange, decodeChange, equals, getHistory, uuid,
+//   Frontend, setDefaultBackend, generateSyncMessage, receiveSyncMessage, initSyncState,
+//   get Backend() { return backend }
+// }
 
-for (let name of ['getObjectId', 'getObjectById', 'getActorId',
-     'setActorId', 'getConflicts', 'getLastLocalChange',
-     'Text', 'Table', 'Counter', 'Observable']) {
-  module.exports[name] = Frontend[name]
-}
+// for (let name of ['getObjectId', 'getObjectById', 'getActorId',
+//      'setActorId', 'getConflicts', 'getLastLocalChange',
+//      'Text', 'Table', 'Counter', 'Observable']) {
+//   module.exports[name] = Frontend[name]
+// }
