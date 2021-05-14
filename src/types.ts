@@ -1,3 +1,5 @@
+import { Table, Text, Counter, WriteableCounter } from '.'
+
 /**
  * The return type of `Automerge.init<T>()`, `Automerge.change<T>()`, etc. where `T` is the
  * original type. It is a recursively frozen version of the original type.
@@ -53,45 +55,17 @@ class Observable {
 
 // custom CRDT types
 
-class TableRow {
+export interface TableRow {
   readonly id: UUID
 }
 
-class Table<T> {
-  // constructor()
-  // add(item: T): UUID
-  // byId(id: UUID): T & TableRow
-  // count: number
-  // ids: UUID[]
-  // remove(id: UUID): void
-  // rows: (T & TableRow)[]
+export interface List<T> extends Array<T> {
+  insertAt?(index: number, ...args: T[]): List<T>
+  deleteAt?(index: number, numDelete?: number): List<T>
 }
 
-class List<T> extends Array<T> {
-  // insertAt?(index: number, ...args: T[]): List<T>
-  // deleteAt?(index: number, numDelete?: number): List<T>
-}
 
-class Text extends List<string> {
-  // constructor(text?: string | string[])
-  // get(index: number): string
-  // toSpans<T>(): (string | T)[]
-}
 
-// Note that until https://github.com/Microsoft/TypeScript/issues/2361 is addressed, we
-// can't treat a Counter like a literal number without force-casting it as a number.
-// This won't compile:
-//   `assert.strictEqual(c + 10, 13) // Operator '+' cannot be applied to types 'Counter' and '10'.ts(2365)`
-// But this will:
-//   `assert.strictEqual(c as unknown as number + 10, 13)`
-class Counter extends Number {
-  // constructor(value?: number)
-  // increment(delta?: number): void
-  // decrement(delta?: number): void
-  // toString(): string
-  // valueOf(): number
-  // value: number
-}
 
 // Readonly variants
 
