@@ -137,10 +137,12 @@ export interface BackendState {
   // no public methods or properties
 }
 
-export type BinaryChange = Uint8Array & { __binaryChange: true }
-export type BinaryDocument = Uint8Array & { __binaryDocument: true }
-export type BinarySyncState = Uint8Array & { __binarySyncState: true }
-export type BinarySyncMessage = Uint8Array & { __binarySyncMessage: true }
+// nominal types for binary data structures
+
+export type BinaryChange = Nominal<Uint8Array, 'BinaryChange'>
+export type BinaryDocument = Nominal<Uint8Array, 'BinaryDocument'>
+export type BinarySyncState = Nominal<Uint8Array, 'BinarySyncState'>
+export type BinarySyncMessage = Nominal<Uint8Array, 'BinarySyncMessage'>
 
 export interface SyncState {
   // no public methods or properties
@@ -294,3 +296,12 @@ export interface FreezeList<T> extends ReadonlyList<Freeze<T>> {}
 export interface FreezeArray<T> extends ReadonlyArray<Freeze<T>> {}
 export interface FreezeMap<K, V> extends ReadonlyMap<Freeze<K>, Freeze<V>> {}
 export type FreezeObject<T> = { readonly [P in keyof T]: Freeze<T[P]> }
+
+
+// Helpers for nominal types
+// https://github.com/andnp/SimplyTyped/blob/master/src/types/utils.ts#L30-L41
+
+export declare class Tagged<N extends string> {
+  protected _nominal_: N
+}
+export type Nominal<T, N extends string> = T & Tagged<N>
