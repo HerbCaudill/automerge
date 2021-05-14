@@ -70,45 +70,45 @@ export type ReadonlyText = ReadonlyList<string> & Text
 
 // Front & back
 
-namespace Frontend {
-  // function applyPatch<T>(doc: Doc<T>, patch: Patch, backendState?: BackendState): Doc<T>
-  // function change<D, T = Proxy<D>>(doc: D, message: string | undefined, callback: ChangeFn<T>): [D, Change]
-  // function change<D, T = Proxy<D>>(doc: D, callback: ChangeFn<T>): [D, Change]
-  // function emptyChange<T>(doc: Doc<T>, message?: string): [Doc<T>, Change]
-  // function from<T>(initialState: T | Doc<T>, options?: InitOptions<T>): [Doc<T>, Change]
-  // function getActorId<T>(doc: Doc<T>): string
-  // function getBackendState<T>(doc: Doc<T>): BackendState
-  // function getConflicts<T>(doc: Doc<T>, key: keyof T): any
-  // function getElementIds(list: any): string[]
-  // function getLastLocalChange<T>(doc: Doc<T>): BinaryChange
-  // function getObjectById<T>(doc: Doc<T>, objectId: OpId): Doc<T>
-  // function getObjectId<T>(doc: Doc<T>): OpId
-  // function init<T>(options?: InitOptions<T>): Doc<T>
-  // function setActorId<T>(doc: Doc<T>, actorId: string): Doc<T>
+export interface IFrontend {
+  applyPatch<T>(doc: Doc<T>, patch: Patch, backendState?: BackendState): Doc<T>
+  change<D>(doc: D, message: string | undefined, callback: ChangeFn<D>): [D, Change]
+  change<D>(doc: D, callback: ChangeFn<D>): [D, Change]
+  emptyChange<T>(doc: Doc<T>, message?: string): [Doc<T>, Change]
+  from<T>(initialState: T | Doc<T>, options?: InitOptions<T>): [Doc<T>, Change]
+  getActorId<T>(doc: Doc<T>): string
+  getBackendState<T>(doc: Doc<T>): BackendState
+  getConflicts<T>(doc: Doc<T>, key: keyof T): any
+  getElementIds(list: any): string[]
+  getLastLocalChange<T>(doc: Doc<T>): BinaryChange
+  getObjectById<T>(doc: Doc<T>, objectId: OpId): Doc<T>
+  getObjectId<T>(doc: Doc<T>): OpId
+  init<T = AnyDoc>(options?: InitOptions<T>): Doc<T>
+  setActorId<T>(doc: Doc<T>, actorId: string): Doc<T>
 }
 
-namespace Backend {
-  // function applyChanges(state: BackendState, changes: BinaryChange[]): [BackendState, Patch]
-  // function applyLocalChange(state: BackendState, change: Change): [BackendState, Patch, BinaryChange]
-  // function clone(state: BackendState): BackendState
-  // function free(state: BackendState): void
-  // function getAllChanges(state: BackendState): BinaryChange[]
-  // function getChangeByHash(state: BackendState, hash: Hash): BinaryChange
-  // function getChanges(state: BackendState, haveDeps: Hash[]): BinaryChange[]
-  // function getHeads(state: BackendState): Hash[]
-  // function getMissingDeps(state: BackendState, heads?: Hash[]): Hash[]
-  // function getPatch(state: BackendState): Patch
-  // function init(): BackendState
-  // function load(data: BinaryDocument): BackendState
-  // function loadChanges(state: BackendState, changes: BinaryChange[]): BackendState
-  // function save(state: BackendState): BinaryDocument
-  // function generateSyncMessage(state: BackendState, syncState: SyncState): [SyncState, BinarySyncMessage?]
-  // function receiveSyncMessage(state: BackendState, syncState: SyncState, message: BinarySyncMessage): [BackendState, SyncState, Patch?]
-  // function encodeSyncMessage(message: SyncMessage): BinarySyncMessage
-  // function decodeSyncMessage(bytes: BinarySyncMessage): SyncMessage
-  // function initSyncState(): SyncState
-  // function encodeSyncState(syncState: SyncState): BinarySyncState
-  // function decodeSyncState(bytes: BinarySyncState): SyncState
+export interface IBackend {
+  applyChanges(state: BackendState, changes: BinaryChange[]): [BackendState, Patch]
+  applyLocalChange(state: BackendState, change: Change): [BackendState, Patch, BinaryChange]
+  clone(state: BackendState): BackendState
+  free(state: BackendState): void
+  getAllChanges(state: BackendState): BinaryChange[]
+  getChangeByHash(state: BackendState, hash: Hash): BinaryChange
+  getChanges(state: BackendState, haveDeps: Hash[]): BinaryChange[]
+  getHeads(state: BackendState): Hash[]
+  getMissingDeps(state: BackendState, heads?: Hash[]): Hash[]
+  getPatch(state: BackendState): Patch
+  init(): BackendState
+  load(data: BinaryDocument): BackendState
+  loadChanges(state: BackendState, changes: BinaryChange[]): BackendState
+  save(state: BackendState): BinaryDocument
+  generateSyncMessage(state: BackendState, syncState: SyncState): [SyncState, BinarySyncMessage?]
+  receiveSyncMessage(state: BackendState, syncState: SyncState, message: BinarySyncMessage): [BackendState, SyncState, Patch?]
+  encodeSyncMessage(message: SyncMessage): BinarySyncMessage
+  decodeSyncMessage(bytes: BinarySyncMessage): SyncMessage
+  initSyncState(): SyncState
+  encodeSyncState(syncState: SyncState): BinarySyncState
+  decodeSyncState(bytes: BinarySyncState): SyncState
 }
 
 // Internals
