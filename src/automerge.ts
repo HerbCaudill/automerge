@@ -1,13 +1,49 @@
-import { Doc, InitOptions } from "./types"
-
-import uuid from './uuid'
-import Frontend from '../frontend'
+import { Backend as _Backend } from '.'
+import { decodeChange } from '../backend/columnar'
 import { OPTIONS } from '../frontend/constants'
-import { encodeChange, decodeChange } from '../backend/columnar'
 import { isObject } from './common'
-import _backend from '../backend' 
+import {
+  IBackend,
+  BackendState,
+  BinaryChange,
+  BinaryDocument,
+  BinarySyncMessage,
+  Change,
+  ChangeFn,
+  ChangeOptions,
+  Doc,
+  InitOptions,
+  Patch,
+  Proxy,
+  State,
+  SyncState,
+  AnyDoc,
+} from './types'
 
-let backend = _backend // mutable: can be overridden with setDefaultBackend()
+export {
+  Counter,
+  WriteableCounter,
+  getActorId,
+  getConflicts,
+  getLastLocalChange,
+  getObjectById,
+  getObjectId,
+  Observable,
+  setActorId,
+  Table,
+  Text,
+} from '../frontend'
+
+export { decodeChange } from '../backend/columnar'
+
+import Frontend from '../frontend'
+
+// TODO there has to be a better way
+import _uuid from './uuid'
+export const uuid = _uuid
+
+export let backend = _Backend
+export let Backend = _Backend
 
 /**
  * Automerge.* API
