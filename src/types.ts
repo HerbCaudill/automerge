@@ -1,4 +1,4 @@
-import { Table, Text, Counter, WriteableCounter } from '.'
+﻿import { Table, Text, Counter, WriteableCounter } from '.'
 
 /**
  * The return type of `Automerge.init<T>()`, `Automerge.change<T>()`, etc. where `T` is the
