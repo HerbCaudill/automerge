@@ -22,7 +22,12 @@ function compareRows(properties, row1, row2) {
  * object that maps column names to values. The set of rows is represented by
  * a map from UUID to row object.
  */
-class Table {
+class Table<T> {
+  protected entries: any // TODO
+  protected opIds: any // TODO
+  protected path: any // TODO
+  protected context: any // TODO
+
   /**
    * This constructor is used by application code when creating a new Table
    * object within a change callback.
@@ -214,7 +219,7 @@ class Table {
  * An instance of this class is used when a table is accessed within a change
  * callback.
  */
-class WriteableTable extends Table {
+class WriteableTable<T> extends Table<T> {
   /**
    * Returns a proxied version of the row with ID `id`. This row object can be
    * modified within a change callback.
