@@ -470,7 +470,7 @@ describe('TypeScript support', () => {
       it('supports `find`', () => {
         assert.deepStrictEqual(s1.books.find(book => book.isbn === '1449373321'), ddiaWithId)})
       it('supports `map`', () =>
-        assert.deepStrictEqual(s1.books.map<string>(book => book.title), [DDIA.title]))
+        assert.deepStrictEqual(s1.books.map(book => book.title), [DDIA.title]))
     })
   })
 
