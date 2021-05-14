@@ -475,20 +475,20 @@ describe('TypeScript support', () => {
 
   describe('Automerge.Counter', () => {
     interface CounterMap {
-      [name: string]: Counter
+      [name: string]: WriteableCounter
     }
 
     interface CounterList {
-      counts: Counter[]
+      counts: WriteableCounter[]
     }
 
     interface BirdCounterMap {
-      birds: CounterMap
+      birds: WriteableCounter | Counter
     }
 
     it('should handle counters inside maps', () => {
       const doc1 = Automerge.change(Automerge.init<CounterMap>(), doc => {
-        doc.wrens = new Counter()
+        doc.wrens = new WriteableCounter()
       })
       assert.equal(doc1.wrens, 0)
 
@@ -500,7 +500,7 @@ describe('TypeScript support', () => {
 
     it('should handle counters inside lists', () => {
       const doc1 = Automerge.change(Automerge.init<CounterList>(), doc => {
-        doc.counts = [new Counter(1)]
+        doc.counts = [new WriteableCounter(1)]
       })
       assert.equal(doc1.counts[0], 1)
 
@@ -511,10 +511,10 @@ describe('TypeScript support', () => {
     })
 
     describe('counter as numeric primitive', () => {
-      let doc1: CounterMap
+      let doc1: BirdCounterMap
       beforeEach(() => {
-        doc1 = Automerge.change(Automerge.init<CounterMap>(), doc => {
-          doc.birds = new Counter(3)
+        doc1 = Automerge.change(Automerge.init<BirdCounterMap>(), doc => {
+          doc.birds = new WriteableCounter(3)
         })
       })
 
