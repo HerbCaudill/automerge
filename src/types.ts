@@ -1,4 +1,4 @@
-﻿/**
+/**
  * The return type of `Automerge.init<T>()`, `Automerge.change<T>()`, etc. where `T` is the
  * original type. It is a recursively frozen version of the original type.
  */
@@ -50,30 +50,6 @@ class Observable {
   // observe<T>(object: T, callback: ObserverCallback<T>): void
 }
 
-// function merge<T>(localdoc: Doc<T>, remotedoc: Doc<T>): Doc<T>
-
-// function change<D, T = Proxy<D>>(doc: D, options: ChangeOptions<T>, callback: ChangeFn<T>): D
-// function change<D, T = Proxy<D>>(doc: D, callback: ChangeFn<T>): D
-// function emptyChange<D extends Doc<any>>(doc: D, options?: ChangeOptions<D>): D
-// function applyChanges<T>(doc: Doc<T>, changes: BinaryChange[]): [Doc<T>, Patch]
-// function equals<T>(val1: T, val2: T): boolean
-// function encodeChange(change: Change): BinaryChange
-// function decodeChange(binaryChange: BinaryChange): Change
-
-// function getActorId<T>(doc: Doc<T>): string
-// function getAllChanges<T>(doc: Doc<T>): BinaryChange[]
-// function getChanges<T>(olddoc: Doc<T>, newdoc: Doc<T>): BinaryChange[]
-// function getConflicts<T>(doc: Doc<T>, key: keyof T): any
-// function getHistory<D, T = Proxy<D>>(doc: Doc<T>): State<T>[]
-// function getObjectById<T>(doc: Doc<T>, objectId: OpId): any
-// function getObjectId(object: any): OpId
-
-// function load<T>(data: BinaryDocument, options?: any): Doc<T>
-// function save<T>(doc: Doc<T>): BinaryDocument
-
-// function generateSyncMessage<T>(doc: Doc<T>, syncState: SyncState): [SyncState, BinarySyncMessage?]
-// function receiveSyncMessage<T>(doc: Doc<T>, syncState: SyncState, message: BinarySyncMessage): [Doc<T>, SyncState, Patch?]
-// function initSyncState(): SyncState
 
 // custom CRDT types
 
