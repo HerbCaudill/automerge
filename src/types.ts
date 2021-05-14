@@ -16,11 +16,6 @@ export type ChangeFn<T> = (doc: T) => void
 
 // Automerge.* functions
 
-// function init<T>(options?: InitOptions<T>): Doc<T>
-// function from<T>(initialState: T | Doc<T>, options?: InitOptions<T>): Doc<T>
-// function clone<T>(doc: Doc<T>, options?: InitOptions<T>): Doc<T>
-// function free<T>(doc: Doc<T>): void
-
 export type InitOptions<T> =
   | string // = actorId
   | {
