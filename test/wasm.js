@@ -14,7 +14,7 @@ if (!process.env.WASM_BACKEND_PATH) {
 }
 
 const assert = require('assert')
-const Automerge = process.env.TEST_DIST === '1' ? require('../dist/automerge') : require('../src/automerge')
+const Automerge = process.env.TEST_DIST === '1' ? require('../dist/src') : require('../src')
 const jsBackend = require('../backend')
 const Frontend = require('../frontend')
 const { decodeChange, decodeDocument } = require('../backend/columnar')

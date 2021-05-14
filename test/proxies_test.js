@@ -1,5 +1,5 @@
 const assert = require('assert')
-const Automerge = process.env.TEST_DIST === '1' ? require('../dist/automerge') : require('../src/automerge')
+const Automerge = process.env.TEST_DIST === '1' ? require('../dist/src') : require('../src')
 const { assertEqualsOneOf } = require('./helpers')
 const UUID_PATTERN = /^[0-9a-f]{32}$/
 

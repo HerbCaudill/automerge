@@ -1,6 +1,5 @@
 import * as assert from 'assert'
-import * as Automerge from 'automerge'
-import { Backend, Frontend, Counter, Doc } from 'automerge'
+import * as Automerge from '../src'
 
 const UUID_PATTERN = /^[0-9a-f]{32}$/
 

@@ -1,5 +1,5 @@
 const assert = require('assert')
-const Automerge = process.env.TEST_DIST === '1' ? require('../dist/automerge') : require('../src/automerge')
+const Automerge = process.env.TEST_DIST === '1' ? require('../dist/src') : require('../src')
 const { BloomFilter } = require('../backend/sync')
 const { decodeChangeMeta } = require('../backend/columnar')
 const { decodeSyncMessage, encodeSyncMessage, decodeSyncState, encodeSyncState, initSyncState } = Automerge.Backend
