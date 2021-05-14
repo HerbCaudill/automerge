@@ -9,10 +9,10 @@
     "lib": ["dom", "esnext.asynciterable", "es2017", "es2016", "es2015"],
     "module": "commonjs",
     "moduleResolution": "node",
-    "paths": { "*": ["src/*", "*", "frontend/*", "backend/*"] },
     "rootDir": "",
     "strict": false,
     "target": "es2016",
   },
-  "exclude": ["dist"]
+  "include": ["backend", "frontend", "src"],
+  "exclude": ["dist", "test"]
 }
