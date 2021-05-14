@@ -12,7 +12,7 @@ export type Doc<T> = FreezeObject<T>
  */
 export type Proxy<D> = D extends Doc<infer T> ? T : never
 
-export type ChangeFn<T> = (doc: T) => void
+export type ChangeFn<T> = (doc: Proxy<T>) => void
 
 // Automerge.* functions
 
