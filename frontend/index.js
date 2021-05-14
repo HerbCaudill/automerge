@@ -6,7 +6,7 @@ const { rootObjectProxy } = require('./proxies')
 const { Context } = require('./context')
 const { Text } = require('./text')
 const { Table } = require('./table')
-const { Counter } = require('./counter')
+const { Counter, WriteableCounter } = require('./counter')
 const { Observable } = require('./observable')
 
 /**
@@ -395,5 +395,5 @@ module.exports = {
   init, from, change, emptyChange, applyPatch,
   getObjectId, getObjectById, getActorId, setActorId, getConflicts, getLastLocalChange,
   getBackendState, getElementIds,
-  Text, Table, Counter, Observable
+  Text, Table, Counter, WriteableCounter, Observable
 }
