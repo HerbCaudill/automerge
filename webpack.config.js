@@ -1,10 +1,10 @@
 const path = require('path')
 
 module.exports = {
-  entry: './src/automerge.ts',
+  entry: './src/index.ts',
   mode: 'development',
   output: {
-    filename: 'automerge.js',
+    filename: 'index.js',
     library: 'Automerge',
     libraryTarget: 'umd',
     path: path.resolve(__dirname, 'dist'),
