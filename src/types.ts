@@ -129,8 +129,8 @@ export interface Clock {
 }
 
 export interface State<T> {
-  change: Change
-  snapshot: T
+  readonly change: Change
+  readonly snapshot: T
 }
 
 export interface BackendState {
