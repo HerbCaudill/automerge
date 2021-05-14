@@ -282,15 +282,21 @@ export type DataType =
 
 // prettier-ignore
 export type Freeze<T> =
-    T extends Function ? T
-    : T extends Text ? ReadonlyText
+      T extends Function ? T
+    : T extends WriteableCounter ? FreezeCounter
+    : T extends Counter ? FreezeCounter
+    : T extends Text ? FreezeText
     : T extends Table<infer T> ? FreezeTable<T>
     : T extends List<infer T> ? FreezeList<T>
-    : T extends Array<infer T> ? FreezeArray<T>
+    : T extends Array<infer T> ? FreezeList<T>
     : T extends Map<infer K, infer V> ? FreezeMap<K, V>
     : T extends string & infer O ? string & O
     : FreezeObject<T>
 
+export type AnyDoc = Record <string | number | symbol, any>
+  
+export interface FreezeCounter extends Counter {}
+export interface FreezeText extends ReadonlyText {}
 export interface FreezeTable<T> extends ReadonlyTable<Freeze<T>> {}
 export interface FreezeList<T> extends ReadonlyList<Freeze<T>> {}
 export interface FreezeArray<T> extends ReadonlyArray<Freeze<T>> {}
