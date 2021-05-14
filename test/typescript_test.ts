@@ -77,8 +77,8 @@ describe('TypeScript support', () => {
       assert.strictEqual(Object.isFrozen(s2.birds), true)
     })
 
-    it('should allow a frontend to be `any`', () => {
-      const s0 = Frontend.init<any>()
+    it('should allow a frontend to be initialized without a specified type', () => {
+      const s0 = Frontend.init()
       const [s1, req1] = Frontend.change(s0, doc => (doc.key = 'value'))
       assert.strictEqual(s1.key, 'value')
       assert.strictEqual(s1.nonexistent, undefined)
@@ -122,8 +122,8 @@ describe('TypeScript support', () => {
   })
 
   describe('saving and loading', () => {
-    it('should allow an `any` type document to be loaded', () => {
-      let s1 = Automerge.init<any>()
+    it('should allow loading a document without a specified type', () => {
+      let s1 = Automerge.init()
       s1 = Automerge.change(s1, doc => (doc.key = 'value'))
       let s2: any = Automerge.load(Automerge.save(s1))
       assert.strictEqual(s2.key, 'value')
