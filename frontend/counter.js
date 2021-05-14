@@ -81,4 +81,4 @@ function getWriteableCounter(value, context, path, objectId, key) {
   return instance
 }
 
-module.exports = { Counter, getWriteableCounter }
+module.exports = { Counter, WriteableCounter, getWriteableCounter }
